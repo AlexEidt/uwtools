@@ -22,10 +22,11 @@ Making data extraction for courses from the University of Washington simple.
 Gathers the Course Catalogs for the given UW Campuses.
 
 <div id='course_catalogs'>
+</div>
+
 ```python
 course_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False)
 ```
-</div>
 
 #### Args
 
@@ -97,10 +98,10 @@ Prerequisites after parsing:
 Returns the departments at UW for each campus.
 
 <div id='departments'>
+</div>
 ```python
 departments(campuses=['Seattle', 'Tacoma', 'Bothell'])
 ```
-</div>
 
 #### Args
 
@@ -133,10 +134,10 @@ departments(campuses=['Seattle', 'Tacoma', 'Bothell'])
 Parses UW's Academic Calendar to find date ranges for every quarter in the current academic year.
 
 <div id='get_quarter_ranges'>
+</div>
 ```python
 get_quarter_ranges(year=None)
 ```
-</div>
 
 #### Args
 
@@ -166,10 +167,10 @@ get_quarter_ranges(year=None)
 Calculates the current quarter at UW based on the current date. If the current date falls on a quarter break, such as Summer break, the current quarter will be Summer (SUM) and the upcoming quarter will be Autumn (AUT).
 
 <div id='get_quarter'>
+</div>
 ```python
 get_quarter(filter_=False, type_='current')
 ```
-</div>
 
 #### Args
 
@@ -195,10 +196,10 @@ get_quarter(filter_=False, type_='current')
 Gathers the Time Schedules for the given UW Campuses, Quarter and Year.
 
 <div id='time_schedules'>
+</div>
 ```python
 time_schedules(campuses=['Seattle', 'Bothell', 'Tacoma'], year=None, quarter=None)
 ```
-</div>
 
 #### Args
 
@@ -238,10 +239,10 @@ If `year` and `quarter` are `None`, then all time schedules from 2003 - 2019 for
 Buildings at each UW Campus.
 
 <div id='buildings'>
+</div>
 ```python
 buidlings(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False)
 ```
-</div>
 
 #### Args
 
@@ -270,10 +271,10 @@ buidlings(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False)
 Geocodes UW Buildings.
 
 <div id='geocode'>
+</div>
 ```python
 geocode(buildings=[], campuses=['Seattle', 'Bothell', 'Tacoma'])
 ```
-</div>
 
 #### Args
 
@@ -308,10 +309,10 @@ geocode(buildings=[], campuses=['Seattle', 'Bothell', 'Tacoma'])
 Checks which campus a building is on.
 
 <div id='check_campus'>
+</div>
 ```python
 check_campus(building)
 ```
-</div>
 
 #### Args
 
