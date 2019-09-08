@@ -19,6 +19,8 @@ Making data extraction for courses from the University of Washington (UW) simple
 pip install uwtools
 ```
 
+***
+
 ## Documentation
 
 * <a href='#course_catalogs'>course_catalogs</a>
@@ -29,6 +31,8 @@ pip install uwtools
 * <a href='#buildings'>buildings</a>
 * <a href='#geocode'>geocode</a>
 * <a href='#check_campus'>check_campus</a>
+
+***
 
 #### `course_catalogs`
 
