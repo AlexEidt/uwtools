@@ -1,8 +1,25 @@
 # uwtools
 
-Making data extraction for courses from the University of Washington simple.
+<p align="center">
+    <img src="uwtoolslogo.png" alt="UW Tools Logo" width=300>
+</p>
 
-## Contents
+Making data extraction for courses from the University of Washington (UW) simple.
+
+* Archived Data in compressed files allows for quick access to a large variety of data from UW.
+* Easily get quarter date ranges and current/upcoming quarters at UW.
+* Easy parsing of the current [Time Schedules](https://www.washington.edu/students/timeschd/) and [Course Catalogs](http://www.washington.edu/students/crscat/) for every UW Campus to get most recent versions of these resources.
+* Complete list of buildings with abbreviations, full names and coordinates.
+* Data stored and returned in `pandas` DataFrames and `Python` dictionaries for easy searching/manipulation.
+* Time Schedule Data is available for courses beginning `AUT 2003`. 
+
+## Installation
+
+```
+pip install uwtools
+```
+
+## Documentation
 
 * <a href='#course_catalogs'>course_catalogs</a>
 * <a href='#departments'>departments</a>
@@ -13,16 +30,17 @@ Making data extraction for courses from the University of Washington simple.
 * <a href='#geocode'>geocode</a>
 * <a href='#check_campus'>check_campus</a>
 
-## Documentation
-
-### Methods
-
 #### `course_catalogs`
 
 Gathers the Course Catalogs for the given UW Campuses.
 
 <div id='course_catalogs'>
 </div>
+
+```
+from uwtools import course_catalogs
+```
+
 
 ```python
 course_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False)
@@ -33,7 +51,7 @@ course_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False)
 * *campuses*: `list`, default `['Seattle', 'Bothell', 'Tacoma']`
 > The list of campuses to get course catalogs from.
 * *update*: `bool`, default `False`
-> Whether to parse the UW Course Catalog websites for each campus or to use the stored course catalogs (Updated AUT 2019). If *update=True* the parsing will take between 15-45 seconds, and may flucuate depending on internet connection.
+> If `False` use the stored course catalogs (Updated AUT 2019). If `True`, parse the UW Course Catalogs to get the most recent version of the Catalog. Parsing will take between 15-45 seconds, and may flucuate depending on internet connection.
 
 #### Returns
 
@@ -100,9 +118,16 @@ Returns the departments at UW for each campus.
 <div id='departments'>
 </div>
 
+```
+from uwtools import departments
+```
+
+
 ```python
 departments(campuses=['Seattle', 'Tacoma', 'Bothell'])
 ```
+
+If you would like to get an updated version of the departments, call `course_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma'], update=True)` with the `campuses` of your choice. When `update=True`, `course_catalogs` returns a tuple with a `pandas` DataFrame as the first item and an updated dictionary with departments as the second item.
 
 #### Args
 
@@ -137,6 +162,11 @@ Parses UW's Academic Calendar to find date ranges for every quarter in the curre
 <div id='get_quarter_ranges'>
 </div>
 
+```
+from uwtools import get_quarter_ranges
+```
+
+
 ```python
 get_quarter_ranges(year=None)
 ```
@@ -144,13 +174,13 @@ get_quarter_ranges(year=None)
 #### Args
 
 * *year*: `int`, default `None`
->  The academic year to get quarter date ranges from. Example: `2019-2020 -> 1920` would correspond to the call `get_quarter_ranges(year=2019)`. Academic years starting from `2014-2015 (1415)` are supported.
+>  The academic year to get quarter date ranges from. Example: `2019-2020 -> 1920` would correspond to the call `get_quarter_ranges(year=2019)`. Academic years starting from `2014-2015 (1415)` are supported. The default `None` will get the current academic year based on the current year. If an academic year before `1415` is passed in the `year` argument, an `AssertionError` is raised.
 
 #### Returns
 
 * Dictionary with Quarter Abbreviation keys mapping to list of datetime objects representing the range of dates for that quarter at UW.
 
-```
+```python
 {'AUT': [
     datetime.date(2019, 9, 25), 
     datetime.date(2019, 12, 6)
@@ -171,6 +201,11 @@ Calculates the current quarter at UW based on the current date. If the current d
 <div id='get_quarter'>
 </div>
 
+```
+from uwtools import get_quarter
+```
+
+
 ```python
 get_quarter(filter_=False, type_='current')
 ```
@@ -180,12 +215,35 @@ get_quarter(filter_=False, type_='current')
 * *filter_*: `bool`, default *False*
 > Filters out the A and B terms of Summer Quarter if `True` otherwise does not.
 * *type_*: `str`, default `'current'`
-> `'current'`: Get the current quarter at UW. `'upcoming'`: Get the upcoming quarter at UW.
-> Quarters: `AUT -> Autumn`
+> `'current'`: Get the current quarter at UW. 
+
+> `'upcoming'`: Get the upcoming quarter at UW.
+> Upcoming Quarters:
+
+> `AUT -> WIN`
+
+> `WIN -> SPR`
+
+> `SPR -> SUM`
+
+> `SUM -> AUT`
+
+> `SUMA -> AUT`
+
+> `SUMB -> AUT`
+
+> Quarters: 
+
+> `AUT -> Autumn`
+
 > `WIN -> Winter`
+
 > `SPR -> Spring`
+
 > `SUM -> Summer`
+
 > `SUMA -> Summer A Term`
+
 > `SUMB -> Summer B Term`
 
 #### Returns
@@ -201,6 +259,11 @@ Gathers the Time Schedules for the given UW Campuses, Quarter and Year.
 <div id='time_schedules'>
 </div>
 
+```
+from uwtools import time_schedules
+```
+
+
 ```python
 time_schedules(campuses=['Seattle', 'Bothell', 'Tacoma'], year=None, quarter=None)
 ```
@@ -210,7 +273,7 @@ time_schedules(campuses=['Seattle', 'Bothell', 'Tacoma'], year=None, quarter=Non
 * *campuses*: `list`, default `['Seattle', 'Bothell', 'Tacoma']`
 > The list of campuses to get time schedules from. 
 * *year*: `int`, default `None`
-> The year to get Time Schedules from. If a year is given with no quarter, then every quarter from the academic year *beginning* with the given `year` arg will be returned. Example: `year = 2017 -> AUT2017, WIN2018, SPR2018, SUM2018`. Years 2003 - Present are supported. If the year is not in this range, an `AssertionError` is raised.
+> The year to get Time Schedules from. If a year is given with no quarter, then every quarter from the academic year *beginning* with the given `year` arg will be returned. Example: `year=2017 -> AUT2017, WIN2018, SPR2018, SUM2018`. Years 2003 - Present are supported. If the year before 2003, an `AssertionError` is raised.
 * *quarter* `str`, default `None`
 > The specific quarter from which to get time schedules. If a quarter is given with no year, `None` is returned.
 
@@ -218,7 +281,7 @@ If `year` and `quarter` are `None`, then all time schedules from 2003 - 2019 for
 
 #### Returns
 
-* A `pandas` DataFrame containing all time schedule data for the given `campuses`, `year` and `quarter`. 
+* A `pandas` DataFrame containing all time schedule data for the given `campuses`, `year` and `quarter`. An example for `time_schedules(campuses=['Seattle'], year=2017, quarter='SPR')` is shown below. 
 * Time schedules from 2003 - 2019 are archived in files for quicker access. Any time schedules beyond these years will be parsed from UW's Time Schedule website for the given campuses if they are available. Otherwise, `None` will be returned. 
 
 ```
@@ -245,6 +308,10 @@ Buildings at each UW Campus.
 <div id='buildings'>
 </div>
 
+```
+from uwtools import buildings
+```
+
 ```python
 buidlings(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False)
 ```
@@ -258,9 +325,9 @@ buidlings(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False)
 
 #### Returns
 
-* A dictionary with building name abbreviations to full names. An example for `buildings(campuses=['Seattle']), update=False` is shown below.
+* A dictionary with building name abbreviations to full names. An example for `buildings(campuses=['Seattle'], update=False)` is shown below.
 
-```
+```python
 "Seattle": {
         "ACC": "John M. Wallace Hall (formerly Academic Computing Center)",
         "AER": "Aerospace & Engineering Research Building",
@@ -278,6 +345,11 @@ Geocodes UW Buildings.
 <div id='geocode'>
 </div>
 
+```
+from uwtools import geocode
+```
+
+
 ```python
 geocode(buildings=[], campuses=['Seattle', 'Bothell', 'Tacoma'])
 ```
@@ -285,7 +357,7 @@ geocode(buildings=[], campuses=['Seattle', 'Bothell', 'Tacoma'])
 #### Args
 
 * *buildings*: `list`, default `[]`
-> The list of buildings to geocode (get coordinates for)
+> The list of buildings to geocode (get coordinates for). If empty, then get all buildings from every campus in `campuses`.
 * *campuses*: `list`, default `['Seattle', 'Bothell', 'Tacoma']`
 > The list of campuses that contain the buildings in `buildings`
 
@@ -293,7 +365,7 @@ geocode(buildings=[], campuses=['Seattle', 'Bothell', 'Tacoma'])
 
 * A dictionary with coordinate and full name information for each building. An example for `geocode(buildings=[], campuses=['Seattle'])` is shown below.
 
-```
+```python
 {
     "ACC": {
         "Latitude": "47.653063",
@@ -316,6 +388,11 @@ Checks which campus a building is on.
 
 <div id='check_campus'>
 </div>
+
+```
+from uwtools import check_campus
+```
+
 
 ```python
 check_campus(building)

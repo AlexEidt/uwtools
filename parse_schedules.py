@@ -97,12 +97,13 @@ def quarter_dates(year=None):
         for date_range in table.find_all('td'):
             text = date_range.text
             if '-' not in text and re.search(r'[A-Z][a-z]+ \d+, \d+', text) and text:
-                temp.append(text.replace(',', '', 1))
+                temp.append(text.replace(',', '', 1).replace('\n', '').replace('\r', ''))
                 if len(temp) == 2:
                     datetimes = []
                     for date in temp:
-                        month, day, year = date.split(' ')
-                        datetimes.append(datetime.date(int(year), month_names[month], int(day)))
+                        data = list(filter(('').__ne__, date.split(' ')))
+                        if len(data) == 3:
+                            datetimes.append(datetime.date(int(data[2]), month_names[data[0]], int(data[1])))
                     start_end[list(QUARTERS.keys())[math.floor(index / 2)]] = [d for d in datetimes]
                     temp.clear()
                 index += 1
