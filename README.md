@@ -2,6 +2,17 @@
 
 Making data extraction for courses from the University of Washington simple.
 
+## Contents
+
+* <a href='#course_catalogs'>course_catalogs</a>
+* <a href='#departments'>departments</a>
+* <a href='#get_quarter_ranges'>get_quarter_ranges</a>
+* <a href='#get_quarter'>get_quarter</a>
+* <a href='#time_schedules'>time_schedules</a>
+* <a href='#buildings'>buildings</a>
+* <a href='#geocode'>geocode</a>
+* <a href='#check_campus'>check_campus</a>
+
 ## Documentation
 
 ### Methods
@@ -10,19 +21,59 @@ Making data extraction for courses from the University of Washington simple.
 
 Gathers the Course Catalogs for the given UW Campuses.
 
-`course_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False)`
+<div id='course_catalogs'>
+    ```python
+    course_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False)
+    ```
+</div>
 
-##### Args
+#### Args
 
 * *campuses*: `list`, default `['Seattle', 'Bothell', 'Tacoma']`
 > The list of campuses to get course catalogs from.
 * *update*: `bool`, default `False`
 > Whether to parse the UW Course Catalog websites for each campus or to use the stored course catalogs (Updated AUT 2019). If *update=True* the parsing will take between 15-45 seconds, and may flucuate depending on internet connection.
 
-##### Returns
+#### Returns
 
 * A `pandas` DataFrame representing the course catalogs for the given campus. An example for `course_catalogs(campuses=['Seattle'])` is shown below.
 * If *update=True* a tuple containing the `pandas` DataFrame mentioned above as the first item and an updated departments dictionary as the second argument.
+* The columns of the DataFrame are (in this order):
+
+```python
+['Campus', 'Department Name', 'Course Number', 'Course Name', 'Credits', 'Areas of Knowledge', 'Quarters Offered','Offered with', 'Prerequisites', 'Co-Requisites', 'Description']
+```
+
+Column Name | Description 
+:--- | ---
+**Campus** | The campus the course is offered at.
+**Department Name** | The name of the department the course is a part of. Denoted by a series of capital letters with no spaces.
+**Course Number** | The 3 digit number identifying the course.
+**Course Name** | The name of the course.
+**Credits** | The number of credits offered for the course. Some courses have variable credits offered/different credit options. Check out the UW's guide for the credit system [here](http://www.washington.edu/students/crscat/glossary.html).
+**Areas of Knowledge** | Areas of Knowledge essentially are credit types. [More Information](https://www.washington.edu/uaa/advising/degree-overview/general-education/).
+**Quarters Offered** | The quarters of the year the course is offered. **A**utumn, **W**inter, **Sp**ring, **S**ummer.
+**Offered with** | At times, a course may be offered alongside a similar course in a different department. 
+**Prerequisites** | Courses that must be taken in order to take the course. 
+**Co-Requisites** | Courses that must be taken at the same time the desired course is being taken.
+**Description** | The description of the course objectives.
+
+Prerequisites and Co-Requisites are separated by the following symbols: `&&`, `;`, `,`, and `/`. These symbols show the and/or relationships between requisite courses. All course separated by a `;` indicate that any one of those courses is enough to statisfy the requirement. Courses separated by a `,` indicate that any course in the list of comma separated values between semi-colons is enough to satisfy the requirement. The `&&` and `/` symbols are used to group courses, with `&&` meaning *and* and `/` meaning *or*.
+
+Examples:
+
+**BIOL423**: 
+Prerequisite: *either BIOL 180 and BIOL 356, or BIOL 180 and FISH 250, or a minimum grade of 3.4 in BIOL 180 or BIOL 240.*
+ 
+Prerequisites after parsing: 
+*BIOL180&&BIOL356,BIOL180&&FISH250,BIOL180,BIOL240*
+
+**EE235**:
+Prerequisite: *either MATH 136, MATH 307, or AMATH 351, any of which may be taken concurrently; PHYS 122; either CSE 142 or CSE 143, either of which may be taken concurrently.*
+
+Prerequisites after parsing:
+*MATH136,MATH307,AMATH351;PHYS122;CSE142,CSE143*
+
 
 ```
             Campus Department Name Course Number  ... Prerequisites Co-Requisites                                        Description       
@@ -46,16 +97,20 @@ LEAD495    Seattle            LEAD           495  ...                           
 
 Returns the departments at UW for each campus.
 
-`departments(campuses=['Seattle', 'Tacoma', 'Bothell'])`
+<div id='departments'>
+    ```python
+    departments(campuses=['Seattle', 'Tacoma', 'Bothell'])
+    ```
+</div>
 
-##### Args
+#### Args
 
 * *campuses*: `list`, default `['Seattle', 'Bothell', 'Tacoma']`
 > The list of campuses to get departments from. An example would be `EE -> Electrical Engineering` at UW Seattle.
 
-##### Returns
+#### Returns
 
-* A dictionary with department name abbreviations to full names.
+* A dictionary with department name abbreviations to full names. An example for `departments(campuses=['Seattle'])` is shown below.
 
 ```
 {
@@ -78,14 +133,18 @@ Returns the departments at UW for each campus.
 
 Parses UW's Academic Calendar to find date ranges for every quarter in the current academic year.
 
-`get_quarter_ranges(year=None)`
+<div id='get_quarter_ranges'>
+    ```python
+    get_quarter_ranges(year=None)
+    ```
+</div>
 
-##### Args
+#### Args
 
 * *year*: `bool`, default `None`
 >  The academic year to get quarter date ranges from. Example: `2019-2020 -> 1920`. Academic years starting from `2014-2015 (1415)` are supported.
 
-##### Returns
+#### Returns
 
 * Dictionary with Quarter Abbreviation keys mapping to list of datetime objects representing the range of dates for that quarter at UW.
 
@@ -107,9 +166,13 @@ Parses UW's Academic Calendar to find date ranges for every quarter in the curre
 
 Calculates the current quarter at UW based on the current date. If the current date falls on a quarter break, such as Summer break, the current quarter will be Summer (SUM) and the upcoming quarter will be Autumn (AUT).
 
-`get_quarter(filter_=False, type_='current')`
+<div id='get_quarter'>
+    ```python
+    get_quarter(filter_=False, type_='current')
+    ```
+</div>
 
-##### Args
+#### Args
 
 * *filter_*: `bool`, default *False*
 > Filters out the A and B terms of Summer Quarter if `True` otherwise does not.
@@ -122,7 +185,7 @@ Calculates the current quarter at UW based on the current date. If the current d
 > `SUMA -> Summer A Term`
 > `SUMB -> Summer B Term`
 
-##### Returns
+#### Returns
 
 * String representing the current quarter(s). NOTE: Summer Quarter has two terms, A and B.
 
@@ -132,9 +195,13 @@ Calculates the current quarter at UW based on the current date. If the current d
 
 Gathers the Time Schedules for the given UW Campuses, Quarter and Year.
 
-`time_schedules(campuses=['Seattle', 'Bothell', 'Tacoma'], year=None, quarter=None)`
+<div id='time_schedules'>
+    ```python
+    time_schedules(campuses=['Seattle', 'Bothell', 'Tacoma'], year=None, quarter=None)
+    ```
+</div>
 
-##### Args
+#### Args
 
 * *campuses*: `list`, default `['Seattle', 'Bothell', 'Tacoma']`
 > The list of campuses to get time schedules from. 
@@ -143,11 +210,12 @@ Gathers the Time Schedules for the given UW Campuses, Quarter and Year.
 * *quarter* `str`, default `None`
 > The specific quarter from which to get time schedules. If a quarter is given with no year, `None` is returned.
 
-If `year` and `quarter` are `None`, then the most recent time schedules will be parsed for the given `campuses`. 
+If `year` and `quarter` are `None`, then all time schedules from 2003 - 2019 for every campus in `campuses` will be shown. This may take a bit to load in.
 
-##### Returns
+#### Returns
 
 * A `pandas` DataFrame containing all time schedule data for the given `campuses`, `year` and `quarter`. 
+* Time schedules from 2003 - 2019 are archived in files for quicker access. Any time schedules beyond these years will be parsed from UW's Time Schedule website for the given campuses if they are available. Otherwise, `None` will be returned. 
 
 ```
        Course Name Seats    SLN Section  Type Days      Time Building Room Number   Campus Quarter  Year
@@ -170,18 +238,22 @@ If `year` and `quarter` are `None`, then the most recent time schedules will be 
 
 Buildings at each UW Campus.
 
-`buidlings(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False)`
+<div id='buildings'>
+    ```python
+    buidlings(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False)
+    ```
+</div>
 
-##### Args
+#### Args
 
 * *campuses*: `list`, default `['Seattle', 'Bothell', 'Tacoma']`
 > The list of campuses to get buidlings from.
 * *update*: `bool`, default `False`
 > If `True`, update the buildings by scraping the buildings website at UW. If `False`, read in the stored values. This should hardly ever be necessary as new buildings do not appear frequently.
 
-##### Returns
+#### Returns
 
-* A dictionary with building name abbreviations to full names.
+* A dictionary with building name abbreviations to full names. An example for `buildings(campuses=['Seattle']), update=False` is shown below.
 
 ```
 "Seattle": {
@@ -198,18 +270,22 @@ Buildings at each UW Campus.
 
 Geocodes UW Buildings.
 
-`geocode(buildings=[], campuses=['Seattle', 'Bothell', 'Tacoma'])`
+<div id='geocode'>
+    ```python
+    geocode(buildings=[], campuses=['Seattle', 'Bothell', 'Tacoma'])
+    ```
+</div>
 
-##### Args
+#### Args
 
 * *buildings*: `list`, default `[]`
 > The list of buildings to geocode (get coordinates for)
 * *campuses*: `list`, default `['Seattle', 'Bothell', 'Tacoma']`
 > The list of campuses that contain the buildings in `buildings`
 
-##### Returns
+#### Returns
 
-* A dictionary with coordinate and full name information for each building.
+* A dictionary with coordinate and full name information for each building. An example for `geocode(buildings=[], campuses=['Seattle'])` is shown below.
 
 ```
 {
@@ -230,16 +306,20 @@ Geocodes UW Buildings.
 
 #### `check_campus`
 
-Checks which campus a building is on
+Checks which campus a building is on.
 
-`check_campus(building)`
+<div id='check_campus'>
+    ```python
+    check_campus(building)
+    ```
+</div>
 
-##### Args
+#### Args
 
 * *building*: `str`
 > The building to check
 
-##### Returns
+#### Returns
 
 * `None` if the building is in none of the UW Campuses. Otherwise, returns the campus the building is on as a String. Either `Seattle`, `Bothell`, or `Tacoma`.
 

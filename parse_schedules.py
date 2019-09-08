@@ -399,29 +399,3 @@ def gather(campuses=['Seattle', 'Bothell', 'Tacoma'], year=None, quarter=None):
             df = pd.concat([df, parse_departments(campus, None, 
                             year=int(year) if year else None, quarter=quarter)])
         return df
-
-
-def main(console=True, update=False):
-    try:
-        os.mkdir(TIME_SCHEDULES_DIR)
-    except Exception:
-        update = 'y' if update else 'n'
-    else:
-        update = 'y' 
-    finally:
-        if 'y' in update:
-            threads = []
-            for campus in CAMPUSES_TIMES.keys():
-                thread = Thread(target=parse_departments, args=(campus, None))
-                threads.append(thread)
-                threads[-1].start()
-            for thread in threads:
-                thread.join()
-
-
-if __name__ == '__main__':
-    #main(console=False, update=True)
-    for campus in ['Seattle', 'Bothell', 'Tacoma']:
-        for year in range(2003, 2019):
-            for i, quarter in enumerate(['AUT', 'WIN', 'SPR', 'SUM']):
-                parse_departments(campus, None, year=year if i == 0 else year + 1, quarter=quarter)

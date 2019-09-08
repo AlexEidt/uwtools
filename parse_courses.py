@@ -272,23 +272,10 @@ def parse_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma']):
 
     del threads
 
-    def compress_file(file_name, compressed):
-        with open(os.path.normpath(f'{os.getcwd()}/Course_Catalogs/{file_name}'), mode='r') as f:
-            with open(os.path.normpath(f'{os.getcwd()}/Course_Catalogs/{compressed}'), mode='wb') as comp:
-                comp.write(compress(f.read().encode()))
-        os.remove(os.path.normpath(f'{os.getcwd()}/Course_Catalogs/{file_name}'))
-
-    # Create Departments json file
-    with open(os.path.normpath(f'{os.getcwd()}/Course_Catalogs/Departments.json'), mode='w') as file:
-        json.dump(total_department_dict, file)
-    compress_file('Departments.json', 'Departments')
-
-    # Create file with Course Catalog
+    # Create DataFrame with Course Catalog
     total_course_df['Course ID'] = total_course_df['Department Name'] + total_course_df['Course Number']
     total_course_df.set_index('Course ID', inplace=True)
-    # Compress File with Course Catalogs
-    total_course_df.to_csv(os.path.normpath(f'{os.getcwd()}/Course_Catalogs/Total_Courses.csv'), sep='\t')
-    compress_file('Total_Courses.csv', 'Total_Courses')
+    
     return (total_course_df, total_department_dict)
 
 
@@ -327,6 +314,3 @@ def get_departments(campuses=['Seattle', 'Tacoma', 'Bothell']):
         chosen[campus] = departments[campus]
     return chosen
 
-
-if __name__ == '__main__':
-    total = parse_catalogs()

@@ -85,23 +85,18 @@ def tacoma():
                         buildings[str(l.text).split(' ', 1)[0].upper()] = text
                         break
     return buildings
-    
 
-def compress_file(file_name, compressed):
-    with open(os.path.normpath(f'{os.getcwd()}/Building_Data/{file_name}'), mode='r') as f:
-        with open(os.path.normpath(f'{os.getcwd()}/Building_Data/{compressed}'), mode='wb') as comp:
-            comp.write(compress(f.read().encode()))
-    os.remove(os.path.normpath(f'{os.getcwd()}/Building_Data/{file_name}'))
 
-def main():
+def main(campuses=['Seattle', 'Bothell', 'Tacoma']):
     print('Scanning UW Buildings...')
     buildings = {}
-    buildings['Seattle'] = seattle()
-    buildings['Bothell'] = bothell()
-    buildings['Tacoma'] = tacoma()
-    with open(os.path.normpath(f'{os.getcwd()}/Building_Data/UW_Buildings.json'), mode='w') as file:
-        json.dump(buildings, file)
-    compress_file('UW_Buildings.json', 'UW_Buildings')
+    functions = {
+        'Seattle': seattle,
+        'Bothell': bothell,
+        'Tacoma': tacoma
+    }
+    for campus in campuses:
+        buildings[campus] = functions[campus]()
     return buildings
 
 
@@ -115,7 +110,7 @@ def get_buildings(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False):
         A dictionary with building name abbreviations to full names.
     """
     if update:
-        return main()
+        return main(campuses=campuses)
     else:
         chosen = {}
         buildings = json.loads(decompress(get_data(__package__, 'Building_Data/UW_Buildings')))
