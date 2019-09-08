@@ -7,6 +7,6 @@ from .parse_schedules import quarter_dates as get_quarter_ranges
 from .parse_schedules import get_quarter
 from .parse_schedules import gather as time_schedules
 
-from .UW_Buildings import get_buildings as buildings
-from .UW_Buildings import geocode
-from .UW_Buildings import check_campus
+from .parse_buildings import get_buildings as buildings
+from .parse_buildings import geocode
+from .parse_buildings import check_campus

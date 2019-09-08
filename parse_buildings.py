@@ -87,19 +87,6 @@ def tacoma():
     return buildings
 
 
-def main(campuses=['Seattle', 'Bothell', 'Tacoma']):
-    print('Scanning UW Buildings...')
-    buildings = {}
-    functions = {
-        'Seattle': seattle,
-        'Bothell': bothell,
-        'Tacoma': tacoma
-    }
-    for campus in campuses:
-        buildings[campus] = functions[campus]()
-    return buildings
-
-
 def get_buildings(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False):
     """Returns the Buildings at UW for each campus
     @params:
@@ -110,7 +97,16 @@ def get_buildings(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False):
         A dictionary with building name abbreviations to full names.
     """
     if update:
-        return main(campuses=campuses)
+        print('Scanning UW Buildings...')
+        buildings = {}
+        functions = {
+            'Seattle': seattle,
+            'Bothell': bothell,
+            'Tacoma': tacoma
+        }
+        for campus in campuses:
+            buildings[campus] = functions[campus]()
+        return buildings
     else:
         chosen = {}
         buildings = json.loads(decompress(get_data(__package__, 'Building_Data/UW_Buildings')))
@@ -149,11 +145,3 @@ def check_campus(building):
         if building in buildings:
             return campus
     return None
-
-    
-
-
-
-if __name__ == '__main__':
-    main()
-

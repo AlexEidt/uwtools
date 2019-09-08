@@ -183,7 +183,7 @@ def parse_departments(campus, none, year=None, quarter=None):
             current_courses_link = '{}{}{}/'.format(CAMPUSES_TIMES[campus]['link'], 
                                     current_quarter, dttime.now().year)
         else:
-            current_courses_link = 'http://hi.com'
+            return None
 
         # Check to see if the Time Schedules for the upcoming quarter is available.
         # If not, the Time Schedule for the current quarter will be parsed instead.

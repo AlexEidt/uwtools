@@ -1,7 +1,7 @@
 # uwtools
 
 <p align="center">
-    <img src="uwtoolslogo.png" alt="UW Tools Logo" width=300>
+    <img src="uwtoolslogo.png" alt="UW Tools Logo" width=400>
 </p>
 
 Making data extraction for courses from the University of Washington (UW) simple.
@@ -41,7 +41,7 @@ Gathers the Course Catalogs for the given UW Campuses.
 <div id='course_catalogs'>
 </div>
 
-```
+```python
 from uwtools import course_catalogs
 ```
 
@@ -122,7 +122,7 @@ Returns the departments at UW for each campus.
 <div id='departments'>
 </div>
 
-```
+```python
 from uwtools import departments
 ```
 
@@ -166,7 +166,7 @@ Parses UW's Academic Calendar to find date ranges for every quarter in the curre
 <div id='get_quarter_ranges'>
 </div>
 
-```
+```python
 from uwtools import get_quarter_ranges
 ```
 
@@ -205,7 +205,7 @@ Calculates the current quarter at UW based on the current date. If the current d
 <div id='get_quarter'>
 </div>
 
-```
+```python
 from uwtools import get_quarter
 ```
 
@@ -222,6 +222,7 @@ get_quarter(filter_=False, type_='current')
 > `'current'`: Get the current quarter at UW. 
 
 > `'upcoming'`: Get the upcoming quarter at UW.
+
 > Upcoming Quarters:
 
 > `AUT -> WIN`
@@ -263,7 +264,7 @@ Gathers the Time Schedules for the given UW Campuses, Quarter and Year.
 <div id='time_schedules'>
 </div>
 
-```
+```python
 from uwtools import time_schedules
 ```
 
@@ -312,7 +313,7 @@ Buildings at each UW Campus.
 <div id='buildings'>
 </div>
 
-```
+```python
 from uwtools import buildings
 ```
 
@@ -349,7 +350,7 @@ Geocodes UW Buildings.
 <div id='geocode'>
 </div>
 
-```
+```python
 from uwtools import geocode
 ```
 
@@ -393,7 +394,7 @@ Checks which campus a building is on.
 <div id='check_campus'>
 </div>
 
-```
+```python
 from uwtools import check_campus
 ```
 
