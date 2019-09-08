@@ -143,8 +143,8 @@ get_quarter_ranges(year=None)
 
 #### Args
 
-* *year*: `bool`, default `None`
->  The academic year to get quarter date ranges from. Example: `2019-2020 -> 1920`. Academic years starting from `2014-2015 (1415)` are supported.
+* *year*: `int`, default `None`
+>  The academic year to get quarter date ranges from. Example: `2019-2020 -> 1920` would correspond to the call `get_quarter_ranges(year=2019)`. Academic years starting from `2014-2015 (1415)` are supported.
 
 #### Returns
 
