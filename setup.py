@@ -4,7 +4,7 @@ with open('README.md', mode='r') as fh:
     long_description = fh.read()
 
 setuptools.setup(name='uwtools',
-      version='0.3',
+      version='1.0',
       description='Easy data collection/manipulation for courses at the University of Washington',
       long_description=long_description,
       long_description_content_type='text/markdown',
@@ -19,5 +19,8 @@ setuptools.setup(name='uwtools',
           'beautifulsoup4',
           'requests'
       ],
+      package_data = {
+          'uwtools': ['*']
+      },
       zip_safe=False,
       python_requires='>=3.6')

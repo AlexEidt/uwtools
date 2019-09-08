@@ -384,7 +384,7 @@ def gather(campuses=['Seattle', 'Bothell', 'Tacoma'], year=None, quarter=None):
         total = pd.DataFrame()
         for campus in campuses:
             archived_schedules = str(decompress(get_data(__package__, 
-                                     f'Time_Schedules/{campus}_Compressed')).decode())
+                                     f'{campus}_Compressed')).decode())
             df = pd.DataFrame([x.split('\t') for x in archived_schedules.split('\n')], 
                             columns=['Index'] + COURSE_KEYS + ['Campus', 'Quarter', 'Year'])
             df.drop('Index', axis=1, inplace=True)

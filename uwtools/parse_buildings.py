@@ -109,7 +109,7 @@ def get_buildings(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False):
         return buildings
     else:
         chosen = {}
-        buildings = json.loads(decompress(get_data(__package__, 'Building_Data/UW_Buildings')))
+        buildings = json.loads(decompress(get_data(__package__, 'UW_Buildings')))
         for campus in campuses:
             chosen[campus] = buildings[campus]
         return chosen

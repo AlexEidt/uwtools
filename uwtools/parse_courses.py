@@ -299,7 +299,7 @@ def gather(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False):
     if update:
         return parse_catalogs(campuses=campuses)
     else:
-        course_catalog = str(decompress(get_data(__package__, 'Course_Catalogs/Total_Courses')).decode())
+        course_catalog = str(decompress(get_data(__package__, 'Total_Courses')).decode())
         df = pd.DataFrame([x.split('\t') for x in course_catalog.split('\n')], columns=['Course_ID'] + COLUMN_NAMES)
         df.set_index('Course_ID', inplace=True)
         total = pd.DataFrame()
@@ -317,7 +317,7 @@ def get_departments(campuses=['Seattle', 'Tacoma', 'Bothell']):
         A dictionary with department name abbreviations to full names.
     """
     chosen = {}
-    departments = json.loads(decompress(get_data(__package__, 'Course_Catalogs/Departments')))
+    departments = json.loads(decompress(get_data(__package__, 'Departments')))
     for campus in campuses:
         chosen[campus] = departments[campus]
     return chosen
