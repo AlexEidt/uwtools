@@ -178,8 +178,11 @@ def parse_departments(campus, none, year=None, quarter=None):
             year += 1
         upcoming_courses_link = '{}{}{}/'.format(CAMPUSES_TIMES[campus]['link'], 
                                 upcoming_quarter, year)
-        current_courses_link = '{}{}{}/'.format(CAMPUSES_TIMES[campus]['link'], 
-                                current_quarter, dttime.now().year)
+        if current_quarter != upcoming_quarter:
+            current_courses_link = '{}{}{}/'.format(CAMPUSES_TIMES[campus]['link'], 
+                                    current_quarter, dttime.now().year)
+        else:
+            current_courses_link = 'http://hi.com'
 
         # Check to see if the Time Schedules for the upcoming quarter is available.
         # If not, the Time Schedule for the current quarter will be parsed instead.
@@ -195,8 +198,7 @@ def parse_departments(campus, none, year=None, quarter=None):
             schedule_link = current_courses_link
             quarter_for_parsing = current_quarter
         else:
-            print(f'''Time Schedules for UW {campus} - {upcoming_quarter} 
-                    and {current_quarter} {year} are not yet available''')
+            print(f'Time Schedules for UW {campus} - {upcoming_quarter} {year} are not yet available')
             return None
         
         is_bothell = campus == 'Bothell'
@@ -245,7 +247,8 @@ def parse_departments(campus, none, year=None, quarter=None):
         c_quarter = get_quarter(filter_=True)
         year = dttime.now().year()
         print('Getting UW Time Schedule Data. Parsing usually takes around 1 minute...')
-        return parse(year, c_quarter, u_quarter)
+        df = parse(year, c_quarter, u_quarter)
+        return df if df is not None and not df.empty else None
     elif year is None and quarter:
         return None
     elif year and quarter is None:
@@ -254,10 +257,11 @@ def parse_departments(campus, none, year=None, quarter=None):
         df = pd.DataFrame()
         for i, q in enumerate(['AUT', 'WIN', 'SPR', 'SUM']):
             df = pd.concat([df, parse(year + 1 if i else year, q, q)], axis=0)
-        return df
+        return df if df is not None and not df.empty else None
     elif year and quarter:
         # If a year and quarter are given, parse the Time Schedule for that specific year/quarter
-        return parse(year, quarter, quarter)
+        df = parse(year, quarter, quarter)
+        return df if df is not None and not df.empty else None
 
 
 def parse_schedules(department):
@@ -392,10 +396,10 @@ def gather(campuses=['Seattle', 'Bothell', 'Tacoma'], year=None, quarter=None):
             elif not year and not quarter:
                 df = df[1:-1]
             total = pd.concat([total, df], axis=0)
-        return total
+        return total if total is not None and not total.empty else None
     else:
         df = pd.DataFrame()
         for campus in campuses:
             df = pd.concat([df, parse_departments(campus, None, 
                             year=int(year) if year else None, quarter=quarter)])
-        return df
+        return df if df is not None and not df.empty else None

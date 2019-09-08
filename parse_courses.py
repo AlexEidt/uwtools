@@ -2,7 +2,7 @@
 
 import re, time, json, os, pkgutil, requests
 import pandas as pd
-from threading import Thread
+from threading import Thread, Lock
 from zlib import compress, decompress
 from pkgutil import get_data
 from tqdm import tqdm
@@ -184,6 +184,12 @@ def parse_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma']):
     assert type(campuses) == list, 'Type of "campuses" must be a list'
     print('Scanning the UW Course Catalogs. Parsing usually takes 15-45 seconds...')
     
+    # Progress bar for Course Schedule Parsing
+    progress_bar = tqdm()
+    
+    # Synchronize threads to prevent errors when concatenating to the total_course_df
+    lock = Lock()
+
     total_course_df = pd.DataFrame()
     total_department_dict = {} # Department abbreviations to names for all UW Campuses
 
@@ -205,6 +211,7 @@ def parse_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma']):
         parsed_departments = set()
         campus_dict = {}
         for dep_link in course_data.find_all('a'):
+            progress_bar.update()
             dep_file = dep_link.get('href')
             if dep_file not in parsed_departments and '/' not in dep_file and '.html' in dep_file:
                 parsed_departments.add(dep_file)
@@ -257,7 +264,8 @@ def parse_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma']):
         course_df = pd.DataFrame(course_list, columns=COLUMN_NAMES)
         del course_list
         nonlocal total_course_df
-        total_course_df = pd.concat([total_course_df, course_df], axis=0, copy=False)
+        with lock:
+            total_course_df = pd.concat([total_course_df, course_df], axis=0, copy=False)
         del course_df
 
     # Parse all three campuses in parallel for faster run time

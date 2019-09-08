@@ -22,9 +22,9 @@ Making data extraction for courses from the University of Washington simple.
 Gathers the Course Catalogs for the given UW Campuses.
 
 <div id='course_catalogs'>
-    ```python
-    course_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False)
-    ```
+```python
+course_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False)
+```
 </div>
 
 #### Args
@@ -37,11 +37,27 @@ Gathers the Course Catalogs for the given UW Campuses.
 #### Returns
 
 * A `pandas` DataFrame representing the course catalogs for the given campus. An example for `course_catalogs(campuses=['Seattle'])` is shown below.
-* If *update=True* a tuple containing the `pandas` DataFrame mentioned above as the first item and an updated departments dictionary as the second argument.
+* If *update=True* a tuple containing the `pandas` DataFrame mentioned above as the first item and an updated departments dictionary as the second argument. Course sections with `to be arranged` meeting times are listed as `NaN` in the `Type`, `Days`, `Time`, `Building`, and `Room Number` columns.
 * The columns of the DataFrame are (in this order):
 
 ```python
 ['Campus', 'Department Name', 'Course Number', 'Course Name', 'Credits', 'Areas of Knowledge', 'Quarters Offered','Offered with', 'Prerequisites', 'Co-Requisites', 'Description']
+```
+
+```
+            Campus Department Name Course Number  ... Prerequisites Co-Requisites                                        Description       
+Course_ID                                         ...
+AFRAM101   Seattle           AFRAM           101  ...                              History, culture, religion, institutions, poli...       
+AFRAM150   Seattle           AFRAM           150  ...                              Introductory survey of topics and problems in ...       
+AFRAM214   Seattle           AFRAM           214  ...                              Introduction to various genres of African Amer...       
+AFRAM220   Seattle           AFRAM           220  ...                              Examines the history and theory of African Ame...       
+AFRAM246   Seattle           AFRAM           246  ...                              Survey of African Americans within the U.S. so...       
+...            ...             ...           ...  ...           ...           ...                                                ...       
+HONORS398  Seattle          HONORS           398  ...                              Special courses drawn from interdisciplinary g...       
+HONORS496  Seattle          HONORS           496  ...                              Allows students completing the Interdisciplina...       
+HONORS499  Seattle          HONORS           499  ...                              Faculty supervised Honors independent study or...       
+LEAD298    Seattle            LEAD           298  ...                              Varied topics related to leadership studies ta...       
+LEAD495    Seattle            LEAD           495  ...                              Guides the creation of a leadership e-portfoli...    
 ```
 
 Column Name | Description 
@@ -74,23 +90,6 @@ Prerequisite: *either MATH 136, MATH 307, or AMATH 351, any of which may be take
 Prerequisites after parsing:
 *MATH136,MATH307,AMATH351;PHYS122;CSE142,CSE143*
 
-
-```
-            Campus Department Name Course Number  ... Prerequisites Co-Requisites                                        Description       
-Course_ID                                         ...
-AFRAM101   Seattle           AFRAM           101  ...                              History, culture, religion, institutions, poli...       
-AFRAM150   Seattle           AFRAM           150  ...                              Introductory survey of topics and problems in ...       
-AFRAM214   Seattle           AFRAM           214  ...                              Introduction to various genres of African Amer...       
-AFRAM220   Seattle           AFRAM           220  ...                              Examines the history and theory of African Ame...       
-AFRAM246   Seattle           AFRAM           246  ...                              Survey of African Americans within the U.S. so...       
-...            ...             ...           ...  ...           ...           ...                                                ...       
-HONORS398  Seattle          HONORS           398  ...                              Special courses drawn from interdisciplinary g...       
-HONORS496  Seattle          HONORS           496  ...                              Allows students completing the Interdisciplina...       
-HONORS499  Seattle          HONORS           499  ...                              Faculty supervised Honors independent study or...       
-LEAD298    Seattle            LEAD           298  ...                              Varied topics related to leadership studies ta...       
-LEAD495    Seattle            LEAD           495  ...                              Guides the creation of a leadership e-portfoli...    
-```
-
 ***
 
 #### `departments`
@@ -98,9 +97,9 @@ LEAD495    Seattle            LEAD           495  ...                           
 Returns the departments at UW for each campus.
 
 <div id='departments'>
-    ```python
-    departments(campuses=['Seattle', 'Tacoma', 'Bothell'])
-    ```
+```python
+departments(campuses=['Seattle', 'Tacoma', 'Bothell'])
+```
 </div>
 
 #### Args
@@ -134,9 +133,9 @@ Returns the departments at UW for each campus.
 Parses UW's Academic Calendar to find date ranges for every quarter in the current academic year.
 
 <div id='get_quarter_ranges'>
-    ```python
-    get_quarter_ranges(year=None)
-    ```
+```python
+get_quarter_ranges(year=None)
+```
 </div>
 
 #### Args
@@ -167,9 +166,9 @@ Parses UW's Academic Calendar to find date ranges for every quarter in the curre
 Calculates the current quarter at UW based on the current date. If the current date falls on a quarter break, such as Summer break, the current quarter will be Summer (SUM) and the upcoming quarter will be Autumn (AUT).
 
 <div id='get_quarter'>
-    ```python
-    get_quarter(filter_=False, type_='current')
-    ```
+```python
+get_quarter(filter_=False, type_='current')
+```
 </div>
 
 #### Args
@@ -196,9 +195,9 @@ Calculates the current quarter at UW based on the current date. If the current d
 Gathers the Time Schedules for the given UW Campuses, Quarter and Year.
 
 <div id='time_schedules'>
-    ```python
-    time_schedules(campuses=['Seattle', 'Bothell', 'Tacoma'], year=None, quarter=None)
-    ```
+```python
+time_schedules(campuses=['Seattle', 'Bothell', 'Tacoma'], year=None, quarter=None)
+```
 </div>
 
 #### Args
@@ -239,9 +238,9 @@ If `year` and `quarter` are `None`, then all time schedules from 2003 - 2019 for
 Buildings at each UW Campus.
 
 <div id='buildings'>
-    ```python
-    buidlings(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False)
-    ```
+```python
+buidlings(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False)
+```
 </div>
 
 #### Args
@@ -271,9 +270,9 @@ Buildings at each UW Campus.
 Geocodes UW Buildings.
 
 <div id='geocode'>
-    ```python
-    geocode(buildings=[], campuses=['Seattle', 'Bothell', 'Tacoma'])
-    ```
+```python
+geocode(buildings=[], campuses=['Seattle', 'Bothell', 'Tacoma'])
+```
 </div>
 
 #### Args
@@ -309,9 +308,9 @@ Geocodes UW Buildings.
 Checks which campus a building is on.
 
 <div id='check_campus'>
-    ```python
-    check_campus(building)
-    ```
+```python
+check_campus(building)
+```
 </div>
 
 #### Args
