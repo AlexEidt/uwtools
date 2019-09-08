@@ -1,6 +1,6 @@
 """Parses UW's Facilities Websites to get all Building Names"""
 
-import re, json, logging, os, requests
+import re, json, os, requests
 from bs4 import BeautifulSoup
 from zlib import compress, decompress
 from pkgutil import get_data

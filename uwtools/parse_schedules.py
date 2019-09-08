@@ -4,7 +4,7 @@ upcoming quarter of UW. If the courses for the upcoming quarter are not availabl
 are used. The current quarter is calculated, no need to enter any information.
 """
 
-import json, math, re, calendar, datetime, logging, time, os, requests
+import json, math, re, calendar, datetime, time, os, requests
 import urllib3 as URL
 from pkgutil import get_data
 from zlib import compress, decompress
