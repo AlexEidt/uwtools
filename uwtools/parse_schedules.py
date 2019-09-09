@@ -379,7 +379,10 @@ def gather(campuses=['Seattle', 'Bothell', 'Tacoma'], year=None, quarter=None):
     Returns:
         A Pandas DataFrame representing the Time Schedules
     """
-    assert int(year) >= 2003, 'Only years supported are from 2003-Present'
+    if year:
+        assert int(year) >= 2003, 'Only years supported are from 2003-Present'
+    if year is None:
+        year = dttime.now().year
     if 2003 <= int(year) <= 2019:
         total = pd.DataFrame()
         for campus in campuses:
