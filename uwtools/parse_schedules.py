@@ -179,11 +179,8 @@ def parse_departments(campus, none, year=None, quarter=None):
             year += 1
         upcoming_courses_link = '{}{}{}/'.format(CAMPUSES_TIMES[campus]['link'], 
                                 upcoming_quarter, year)
-        if current_quarter != upcoming_quarter:
-            current_courses_link = '{}{}{}/'.format(CAMPUSES_TIMES[campus]['link'], 
-                                    current_quarter, dttime.now().year)
-        else:
-            return None
+        current_courses_link = '{}{}{}/'.format(CAMPUSES_TIMES[campus]['link'], 
+                                current_quarter, dttime.now().year)
 
         # Check to see if the Time Schedules for the upcoming quarter is available.
         # If not, the Time Schedule for the current quarter will be parsed instead.
@@ -193,6 +190,8 @@ def parse_departments(campus, none, year=None, quarter=None):
                                             upcoming_quarter.upper(), year)
             schedule_link = upcoming_courses_link
             quarter_for_parsing = upcoming_quarter
+        elif current_quarter == upcoming_quarter:
+            return None
         elif requests.get(current_courses_link).ok:
             courses_link = '{}{}{}/'.format(CAMPUSES_TIMES[campus]['schedule'], 
                                             current_quarter.upper(), dttime.now().year)
@@ -247,22 +246,20 @@ def parse_departments(campus, none, year=None, quarter=None):
         u_quarter = get_quarter(filter_=True, type_='upcoming')
         c_quarter = get_quarter(filter_=True)
         year = dttime.now().year()
-        print('Getting UW Time Schedule Data. Parsing usually takes around 1 minute...')
         df = parse(year, c_quarter, u_quarter)
-        return df if df is not None and not df.empty else None
+        return df
     elif year is None and quarter:
         return None
     elif year and quarter is None:
         # If a year is given with no quarter, all quarters from that year will be parsed
-        print('Getting UW Time Schedule Data. Parsing usually takes around 4 minutes...')
         df = pd.DataFrame()
         for i, q in enumerate(['AUT', 'WIN', 'SPR', 'SUM']):
             df = pd.concat([df, parse(year + 1 if i else year, q, q)], axis=0)
-        return df if df is not None and not df.empty else None
+        return df
     elif year and quarter:
         # If a year and quarter are given, parse the Time Schedule for that specific year/quarter
         df = parse(year, quarter, quarter)
-        return df if df is not None and not df.empty else None
+        return df
 
 
 def parse_schedules(department):
@@ -407,3 +404,4 @@ def gather(campuses=['Seattle', 'Bothell', 'Tacoma'], year=None, quarter=None):
             df = pd.concat([df, parse_departments(campus, None, 
                             year=int(year) if year else None, quarter=quarter)])
         return df if df is not None and not df.empty else None
+

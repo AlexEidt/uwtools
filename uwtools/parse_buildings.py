@@ -123,7 +123,7 @@ def geocode(buildings=[], campuses=['Seattle', 'Bothell', 'Tacoma']):
     Returns
         A dictionary with data for each building in the buildings list
     """
-    coordinates = json.loads(decompress(get_data(__package__, 'Building_Data/Coordinates')))
+    coordinates = json.loads(decompress(get_data(__package__, 'Coordinates')))
     all_campuses = {}
     for campus, buildings_ in coordinates.items():
         if campus in campuses:
@@ -140,7 +140,7 @@ def check_campus(building):
     Returns
         The campus the building is on. If no campus is found, returns None.
     """
-    coordinates = json.loads(decompress(get_data(__package__, 'Building_Data/Coordinates')))
+    coordinates = json.loads(decompress(get_data(__package__, 'Coordinates')))
     for campus, buildings in coordinates.items():
         if building in buildings:
             return campus

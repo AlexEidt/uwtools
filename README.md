@@ -1,7 +1,7 @@
 # uwtools
 
 <p align="center">
-    <img src="uwtoolslogo.png" alt="UW Tools Logo" width=400>
+    <img src="uwtoolslogo.png" alt="UW Tools Logo" width=450>
 </p>
 
 Making data extraction for courses from the University of Washington (UW) simple.
@@ -282,7 +282,7 @@ time_schedules(campuses=['Seattle', 'Bothell', 'Tacoma'], year=None, quarter=Non
 * *quarter* `str`, default `None`
 > The specific quarter from which to get time schedules. If a quarter is given with no year, `None` is returned.
 
-If `year` and `quarter` are `None`, then all time schedules from 2003 - 2019 for every campus in `campuses` will be shown. This may take a bit to load in.
+If `year` and `quarter` are `None`, then the most recent time schedules will be returned if available.
 
 #### Returns
 
