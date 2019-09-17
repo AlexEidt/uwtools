@@ -1,12 +1,14 @@
 """ Creates a tsv file containing course data for each UW Campus """
 
-import re, time, json, os, pkgutil, requests
+import re, time, json, os, requests
 import pandas as pd
+import concurrent.futures as cf
 from threading import Thread, Lock
 from zlib import compress, decompress
 from pkgutil import get_data
 from tqdm import tqdm
 from bs4 import BeautifulSoup
+from unicodedata import normalize
 
 CAMPUSES = {   
     'Seattle': 'http://www.washington.edu/students/crscat/',                                                                             
@@ -18,6 +20,12 @@ COLUMN_NAMES = ['Campus', 'Department Name', 'Course Number', 'Course Name', 'Cr
                 'Areas of Knowledge', 'Quarters Offered', 'Offered with', 
                 'Prerequisites', 'Co-Requisites', 'Description']
 
+find_all_re = re.compile(r'[A-Z& ]+/[A-Z& ]+/[A-Z& ]+\d+')
+find_one_re = re.compile(r'[A-Z& ]+/[A-Z& ]+\d+')
+find_series_2_re = re.compile(r'[A-Z& ]+\d+, ?\d{3}')
+find_series_3_re = re.compile(r'[A-Z& ]+\d+, ?\d{3}, ?\d{3}')
+course_re = re.compile(r'[A-Z& ]+')
+three_digits = re.compile(r'\d{3}')
 
 def complete_description(description):
     """Replaces all occurances of un-numbered courses in the given course description
@@ -26,19 +34,19 @@ def complete_description(description):
     Returns 
         Completed courses in description
     """
-    find_all_re = re.compile(r'[A-Z& ]+/[A-Z& ]+/[A-Z& ]+\d+')
-    find_one_re = re.compile(r'[A-Z& ]+/[A-Z& ]+\d+')
-    find_series_2_re = re.compile(r'[A-Z& ]+\d+, ?\d{3}')
-    find_series_3_re = re.compile(r'[A-Z& ]+\d+, ?\d{3}, ?\d{3}')
-    course_re = re.compile(r'[A-Z& ]+')
-    three_digits = re.compile(r'\d{3}')
+    local_find_all_re = find_all_re
+    local_find_one_re = find_one_re
+    local_find_series_2_re = find_series_2_re
+    local_find_series_3_re = find_series_3_re
+    local_course_re = course_re
+    local_three_digits = three_digits
 
-    find_all = re.findall(find_all_re, description)
-    find_one = re.findall(find_one_re, description)
+    find_all = re.findall(local_find_all_re, description)
+    find_one = re.findall(local_find_one_re, description)
     
     def remove_in(a, b):
         remove = [y for x in a for y in b if y in x]
-        for x in b: a.append(x)
+        a.extend(b)
         for x in remove: a.remove(x)
         return a
             
@@ -47,51 +55,58 @@ def complete_description(description):
         for i, x in enumerate(find_all):
             completed = []
             find_all[i] = x.replace(' ', '')
-            number = re.search(three_digits, find_all[i]).group(0)
-            for crs in re.findall(course_re, find_all[i]):
+            number = re.search(local_three_digits, find_all[i]).group(0)
+            for crs in re.findall(local_course_re, find_all[i]):
                 completed.append(f'{crs}{number}')
-            description = description.replace(x, '{}{}'.format(' ', '/'.join(completed)), 1)
+            description = description.replace(x, ' {}'.format('/'.join(completed)), 1)
 
-    find_series_2 = re.findall(find_series_2_re, description)
-    find_series_3 = re.findall(find_series_3_re, description)
-    find_series_2 = remove_in(find_series_3, find_series_2)
-    for i, series in enumerate(find_series_2):
-        find_series_2[i] = series.replace(' ', '')
-        number = find_series_2[i][-3:]
-        depmnt = None
-        course_dep = re.search(course_re, find_series_2[i])
-        if course_dep: 
-            depmnt = course_dep.group(0)
-            description = description.replace(series, f'{depmnt}{number}', 1)
+    find_series_2 = re.findall(local_find_series_2_re, description)
+    find_series_3 = re.findall(local_find_series_3_re, description)
+    if find_series_2 or find_series_3:
+        find_series_2 = remove_in(find_series_3, find_series_2)
+        for i, series in enumerate(find_series_2):
+            find_series_2[i] = series.replace(' ', '')
+            course_dep = re.search(local_course_re, find_series_2[i])
+            if course_dep: 
+                depmnt = course_dep.group(0)
+                description = description.replace(series, f'{depmnt}{find_series_2[i][-3:]}', 1)
     return description
 
 
-def get_requisites(description, type):
+not_offered = re.compile(r'[Nn]ot open to students')
+co_req = re.compile(r'[Cc]o-?[Rr]equisites?')
+no_credit_if_re = re.compile \
+    (r'([Cc]annot|[Mm]ay not) be taken for credit if (credit received for|student has taken)?[A-Z& ]+\d{3}')
+mulitple_re = re.compile(r'[A-Z& ]+\d{3}/[A-Z& ]+\d{3}/[A-Z& ]+\d{3} and')
+find_match_re = re.compile(r'([A-Z& ]{2,}\d{3})')  
+
+def get_requisites(description, type_):
     """Gets the requisite courses for the given course
     @params
         'description': The course description
-        'type': Either 'Prerequisite' or 'Co-Requisite'
+        'type_': Either 'Prerequisite' or 'Co-Requisite'
     Returns 
         The requisite courses. 
-        If type='Prerequisite', courses are separated by ';', '/', '&&', and/or ','
     """
-    if type not in description:                                                             
+    if type_ not in description:                                                             
         return ''    
 
-    not_offered = re.compile(r'[Nn]ot open to students')
-    co_req = re.compile(r'[Cc]o-?[Rr]equisites?')
-    no_credit_if_re = re.compile(r'([Cc]annot|[Mm]ay not) be taken for credit if (credit received for|student has taken)?[A-Z& ]+\d{3}')
-    mulitple_re = re.compile(r'[A-Z& ]+\d{3}/[A-Z& ]+\d{3}/[A-Z& ]+\d{3} and')
-    find_match_re = re.compile(r'([A-Z& ]{2,}\d{3})')  
+    local_not_offered = not_offered
+    local_co_req = co_req
+    local_no_credit_if_re = no_credit_if_re
+    local_mulitple_re = mulitple_re
+    local_find_match_re = find_match_re
 
     description = description.replace(' AND ', ' and ').replace(' OR ', ' or ').replace('; or', '/')
     description = description.replace('and either', ';').replace('and one of', ';')
-    description = re.sub(no_credit_if_re, '', description)
-    description = not_offered.split(description.split('Offered:')[0].split(type)[1])[0]
-    multiple = re.search(mulitple_re, description)
+    description = re.sub(local_no_credit_if_re, '', description)
+    description = local_not_offered.split(description.rsplit('Offered:', 1)[0].split(type_, 1)[-1])[0]
+    multiple = re.search(local_mulitple_re, description)
     if multiple:
         description = description.replace(multiple.group(0), f'{multiple.group(0)[:-4]};', 1)
-    if 'Prerequisite' in type: description = co_req.split(description)[0]                         
+    del multiple, local_mulitple_re, local_not_offered, local_no_credit_if_re
+    if 'Prerequisite' in type_: description = local_co_req.split(description)[0]   
+    del local_co_req                      
     POI = ',POI' if 'permission' in description.lower() else '' 
     new_result = []
     for course in description.split('(')[0].split(';'):
@@ -103,41 +118,41 @@ def get_requisites(description, type):
 
     if 'with either' in description:
             with_either = description.split('with either')
-            description = '{}&&{}'.format(with_either[0], with_either[1].replace('or', '/'))
-    description = description.replace('and', '&&').replace('or', ',')
+            description = '{}&&{}'.format(with_either[0], with_either[1].replace(' or ', '/'))
+    description = description.replace(' and ', '&&').replace(' or ', ',')
 
     def extract(course_option, split_char):
         elements = []
-        for next_option in list(filter(('').__ne__, course_option.split(split_char))):
+        for next_option in filter(('').__ne__, course_option.split(split_char)):
             find_match(next_option, elements)
         return elements
 
     def find_match(to_match, to_append):
-        match = re.search(find_match_re, to_match)
+        match = re.search(local_find_match_re, to_match)
         if match: to_append.append(match.group(0))
 
     semi_colon = []
-    for crs in list(filter(('').__ne__, description.split(';'))):
+    for crs in filter(('').__ne__, description.split(';')):
         comma = []
-        for option in list(filter(('').__ne__, crs.split(','))):
+        for option in filter(('').__ne__, crs.split(',')):
             if '/' in option and '&&' not in option:
                 comma.append('/'.join(extract(option, '/')))
             elif '/' not in option and '&&' in option:
                 comma.append('&&'.join(extract(option, '&&')))
             elif '/' in option and '&&' in option:
-                doubleand = ['/'.join(extract(x, '/')) for x in list(filter(('').__ne__, option.split('&&')))]
+                doubleand = ['/'.join(extract(x, '/')) for x in filter(('').__ne__, option.split('&&'))]
                 comma.append('&&'.join(doubleand))
             else:
                 find_match(option, comma) 
-        semi_colon.append(','.join(list(filter(('').__ne__, comma))))
-    result = ';'.join(list(filter(('').__ne__, semi_colon))).replace(' ', '')
+        semi_colon.append(','.join(filter(('').__ne__, comma)))
+    result = ';'.join(filter(('').__ne__, semi_colon)).replace(' ', '')
     result = result.strip(',').strip(';').strip('&').replace(';,', ';')
     result = f'{result}{POI}'
     result = re.sub(r'&{3,}', '', result)
-    result = ','.join(list(filter(('').__ne__, result.split(','))))
-    result = ';'.join(list(filter(('').__ne__, result.split(';'))))
-    result = ','.join(list(dict.fromkeys(result.split(',')))).replace(';&&', ';').strip('&')
-    result = ';'.join(list(dict.fromkeys(result.split(';'))))
+    result = ','.join(filter(('').__ne__, result.split(',')))
+    result = ';'.join(filter(('').__ne__, result.split(';')))
+    result = ','.join(dict.fromkeys(result.split(','))).replace(';&&', ';').strip('&')
+    result = ';'.join(dict.fromkeys(result.split(';')))
     result = result.strip(',').strip(';').strip('&').replace(';,', ';').strip()
     filter_result = []
     for course in result.split(';'):
@@ -150,6 +165,9 @@ def get_requisites(description, type):
     return ';'.join(filter_result)
 
 
+parts_re = re.compile(r'([A-Z& ]+\d+)')
+quarters = ['A', 'W', 'Sp', 'S']
+
 def get_offered(description):
     """Gets the quarters the course is offered
     @params
@@ -159,166 +177,303 @@ def get_offered(description):
     """
     if 'Offered:' not in description:                                                       
         return ''  
-        
-    parts_re = re.compile(r'([A-Z& ]+\d+)')
+    local_parts_re = parts_re
+    local_quarters = quarters
                                                                          
-    check_parts = description.split('Offered:')[1]                                         
+    check_parts = description.rsplit('Offered:', 1)[-1]                                         
     parts = check_parts.split(';')[1] if ';' in check_parts else check_parts
-    parts = re.sub(parts_re, '', parts)
+    parts = re.sub(local_parts_re, '', parts)
     result = []
-    quarters = ['A', 'W', 'Sp', 'S']
-    for quarter in quarters:
+    for quarter in local_quarters:
         if quarter in parts:
             result.append(quarter)
-            parts = parts.replace(quarter, '')
-    return ','.join(result)                      
+            parts = parts.replace(quarter, '', 1)
+    return ','.join(result)        
 
 
-def parse_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma']):
-    """Creates a .tsv file for every UW campus
+course_re = re.compile(r'[A-Z&]+')
+course_name_re = re.compile(r'[^\(]+')
+credits_re = re.compile(r'(((I&S)|(DIV)|(NW)|(VLPA)|(QSR))[,\s/]?)+')
+credits_num_re = re.compile(r'\([\*,\[\]\.max\d/ \-]+\)')
+offered_jointly_re = re.compile(r'([A-Z& ]+\d+)')
+
+def parse_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma'], struct='df', 
+                   show_progress=False):
+    """Parses the UW Course Catalogs for the given campuses
+    @params
+        'campuses': The Campuses to get the course catalogs from
+        'struct': The Data Structure to return the course catalog data in
+                  'df' -> Pandas DataFrame
+                  'dict' -> Python Dictionary
+        'show_progress': Displays a progress meter in the console if True,
+                         otherwise displays nothing
     Returns
-        A Tuple. The first element is a pandas DataFrame with the scanned Course Catalogs for
-        each UW Campus. The second element is a python dictionary with the department names to
-        abbreviations for each UW Campus.
+        A Pandas DataFrame/Python Dictionary representing the course catalogs for all UW
+        Campuses in the 'campuses' list. 
     """
-    assert type(campuses) == list, 'Type of "campuses" must be a list'
-    print('Scanning the UW Course Catalogs. Parsing usually takes 15-45 seconds...')
-    
+    assert type(campuses) == list or type(campuses) == dict, 'Type of "campuses" must be list or dict'
+    if type(campuses) == dict:
+        for key, value in campuses:
+            if type(key) != str or type(value) != list:
+                raise ValueError('''"campuses" dict must have keys of type str and
+                                     values of type list''')
+    # Check if all campuses in 'campuses' are valid
+    assert all([c in ['Seattle', 'Bothell', 'Tacoma'] for c in list(map(str.title, campuses))])
+    assert type(struct) == str, 'Type of "struct" must be str'
+    assert type(show_progress) == bool, 'Type of "show_progress" must be bool'
+    assert struct in ['df', 'dict'], f'{struct} is an invalid argument for "struct"'
+
     # Progress bar for Course Schedule Parsing
-    progress_bar = tqdm()
-    
-    # Synchronize threads to prevent errors when concatenating to the total_course_df
-    lock = Lock()
+    if show_progress:
+        progress_bar = tqdm()
 
-    total_course_df = pd.DataFrame()
-    total_department_dict = {} # Department abbreviations to names for all UW Campuses
-
-    def read_department_courses(course_data, campus):
-        """Creates a .tsv file with all the course offered on the given 'campus'
-        Initalizes 'departments.json' to include a dictionary of all department
-        abbreviations to actual department name for each UW Campus.
+    def parse_campus(department_data, campus):
+        """Parses all courses from a UW Campus
         @params
-            'course_data': BeautifulSoup object with the department list website for the given 'campus'
-            'campus': The campus to get the courses from
+            'department_data': BeautifulSoup object with the department list website source
+                               for the given 'campus'
+            'campus': The campus to get courses from
+        Returns
+            A pandas DataFrame with all courses in the given campus
         """
-        course_re = re.compile(r'[A-Z&]+')
-        course_name_re = re.compile(r'[^\(]+')
-        credits_re = re.compile(r'(((I&S)|(DIV)|(NW)|(VLPA)|(QSR))[,\s/]?)+')
-        credits_num_re = re.compile(r'\([\*,\[\]\.max\d/ \-]+\)')
-        offered_jointly_re = re.compile(r'([A-Z& ]+\d+)')
 
-        course_list = []
-        parsed_departments = set()
-        campus_dict = {}
-        for dep_link in course_data.find_all('a'):
-            progress_bar.update()
-            dep_file = dep_link.get('href')
-            if dep_file not in parsed_departments and '/' not in dep_file and '.html' in dep_file:
+        def extract_data(department_link):
+            """Extracts all course information from a UW Department
+            @params:
+                'department_link': The url to the UW Department to get course
+                                   information from
+            Returns
+                A list of lists. Each nested list represents one course section with the
+                following values (in this order):
+                'Campus', 'Department Name', 'Course Number', 'Course Name', 'Credits',
+                'Areas of Knowledge', 'Quarters Offered', 'Offered with', 
+                'Prerequisites', 'Co-Requisites', 'Description'
+            """
+            # Update the progress bar
+            if show_progress:
+                progress_bar.update()
+
+            # Regular expressions for searching course descriptions stored in local variables
+            # for better peformance
+            local_course_re = course_re
+            local_course_name_re = course_name_re
+            local_credits_re = credits_re
+            local_credits_num_re = credits_num_re
+            local_offered_jointly_re = offered_jointly_re
+            local_CAMPUSES = CAMPUSES
+
+            # Method used in extracting data from course descriptions found in the local scope
+            # are stored in local variables for better performance
+            local_complete_description = complete_description
+            local_get_offered = get_offered
+            local_get_requisites = get_requisites
+
+            # All the courses in the department
+            courses = []
+            dep_file = department_link.get('href')
+            # The only links that are used for finding departments are those
+            # of the format [a-z]+.html
+            if '/' not in dep_file and dep_file.endswith('.html') \
+                                   and dep_file not in parsed_departments:
                 parsed_departments.add(dep_file)
-                department = BeautifulSoup(requests.get(f'{CAMPUSES[campus]}{dep_file}').text, features='lxml')
+                department = BeautifulSoup(requests.get( \
+                            f'{local_CAMPUSES[campus]}{dep_file}').text, features='lxml')
                 for course in department.find_all('a'):
                     course_ID = course.get('name')  
                     if course_ID:
                         course_ID = course_ID.upper()
-                        course_title = str(course.find('b').text)
+                        course_title = course.find('b').text
                         # The Course Description
                         description = course.get_text().replace(course_title, '', 1)        
                         instructors = course.find('i')
                         if instructors:
                             description = description.replace(str(instructors.get_text()), '', 1)
-                        course_text = complete_description(description.rsplit('View course details in MyPlan', 1)[0])
-                        # Department Name i.e 'BIOL'
-                        department_name = course_ID[:-3]
+                        del instructors
+                        course_text = local_complete_description( \
+                                        description.rsplit('View course details in MyPlan', 1)[0])
                         # Course Number i.e 351
-                        course_number = re.sub(course_re, '', course_ID)
-                        match_name = re.search(course_name_re, course_title)
-                        # Course Name i.e Introduction to Computer Programming I
-                        course_name = match_name.group(0).split(course_number, 1)[-1].strip() if match_name else ''
-                        match_credit_num = re.search(credits_num_re, course_title)
-                        # Number of credits for the course
-                        number_credits = match_credit_num.group(0)[1:-1] if match_credit_num else ''
-                        match_credit_types = re.search(credits_re, course_title)
-                        # Course Credit Types (I&S, DIV, NW, VLPA, QSR, C)
-                        course_credit_types = match_credit_types.group(0).strip(',').strip('/').strip() if match_credit_types else ''
+                        course_number = re.sub(local_course_re, '', course_ID)
+                        match_name = re.search(local_course_name_re, course_title)
+                        match_credit_num = re.search(local_credits_num_re, course_title)
+                        match_credit_types = re.search(local_credits_re, course_title)
                         # Jointly offered course with the given course
                         if 'jointly with' in course_text:                                                   
-                            offered_jointly = course_text.rsplit('jointly with ')[-1].split(';')[-1]                                
-                            offered_jointly = ','.join(re.findall(offered_jointly_re, course_text)).replace(' ', '') 
+                            offered_jointly = course_text.rsplit('jointly with ', 1)[-1].rsplit(';', 1)[0]                                
+                            offered_jointly = ','.join(re.findall( \
+                                local_offered_jointly_re, offered_jointly)).replace(' ', '') 
                         else:
                             offered_jointly = ''
-                        # Quarters the course is offered (A, W, Sp, S)
-                        quarters_offered = get_offered(course_text)
-                        # Course Prerequisites
-                        prerequisites = get_requisites(course_text, 'Prerequisite:')
-                        # Course Co-Requisites
-                        corequisites = get_requisites(course_text, 'Co-requisite')
-                        course_list.append(
-                            [campus, department_name, course_number, course_name,
-                            number_credits, course_credit_types, quarters_offered,
-                            offered_jointly, prerequisites, corequisites, course_text]
+                        courses.append(
+                                # Campus, Department Name and Course Number
+                                [campus, course_ID[:-3], course_number, 
+                                # Course Name
+                                match_name.group(0).split(course_number, 1)[-1].strip() \
+                                                            if match_name else '',
+                                # Number of credits for the course
+                                match_credit_num.group(0)[1:-1] \
+                                                            if match_credit_num else '', 
+                                # Course Credit Types (I&S, DIV, NW, VLPA, QSR, C)
+                                match_credit_types.group(0).strip(',').strip('/').strip() \
+                                                            if match_credit_types else '', 
+                                local_get_offered(course_text),
+                                offered_jointly, local_get_requisites(course_text, 'Prerequisite:'), 
+                                local_get_requisites(course_text, 'Co-requisite'), course_text]
                         )
-                        department_full_name = dep_link.get_text().rsplit('(', 1)[0].strip()
-                        campus_dict[department_name] = department_full_name
-        total_department_dict[campus] = campus_dict
-        del parsed_departments
-        course_df = pd.DataFrame(course_list, columns=COLUMN_NAMES)
-        del course_list
-        nonlocal total_course_df
-        with lock:
-            total_course_df = pd.concat([total_course_df, course_df], axis=0, copy=False)
-        del course_df
+            return courses
+
+        # In the course catalog website, several department links appear multiple times
+        # To prevent parsing the same department more than once, parsed departments
+        # are tracked in 'parsed_departments'
+        parsed_departments = set()
+        local_extract_data = extract_data
+        department_data = BeautifulSoup(requests.get(department_data).text, features='lxml')
+
+        campus_catalog = []
+        # Extract data from department websites in parallel to reduce idle time
+        with cf.ThreadPoolExecutor() as executor:
+            results = [executor.submit(local_extract_data, department_link) 
+                       for department_link in department_data.find_all('a')]
+            for result in cf.as_completed(results):
+                dptmnt = result.result()
+                if dptmnt:
+                    campus_catalog.append(dptmnt)
+
+        # DataFrame with all courses in the campus
+        return pd.DataFrame(
+            [course for department in campus_catalog for course in department], 
+            columns=COLUMN_NAMES
+        )
+
+    # The pandas DataFrame to store the entire course catalog for each UW Campus entered
+    # by the user
+    course_catalog = pd.DataFrame()
 
     # Parse all three campuses in parallel for faster run time
-    threads = []
-    for campus, link in CAMPUSES.items():
-        if campus in campuses: 
-            threads.append(Thread(target=read_department_courses, name=campus,
-                        args=(BeautifulSoup(requests.get(link).text, features='lxml'), campus)))
-            threads[-1].start()
-    for thread in threads:
-        thread.join()
+    with cf.ThreadPoolExecutor() as executor:
+        results = []
+        for campus, link in CAMPUSES.items():
+            if campus in campuses: 
+                results.append(executor.submit(parse_campus, link, campus))
+        for result in cf.as_completed(results):
+            course_catalog = pd.concat([course_catalog, result.result()])
 
-    del threads
-
-    # Create DataFrame with Course Catalog
-    total_course_df['Course ID'] = total_course_df['Department Name'] + total_course_df['Course Number']
-    total_course_df.set_index('Course ID', inplace=True)
+    # Add Course ID as the index of the DataFrame to allow for easy course searching
+    # Course ID = Department Name + Course Number
+    # Example: EE235 = EE + 235
+    course_catalog['Course ID'] = course_catalog['Department Name'] + course_catalog['Course Number']
+    course_catalog.set_index('Course ID', inplace=True)
     
-    return (total_course_df, total_department_dict)
+    if struct == 'df':
+        return course_catalog
+    elif struct == 'dict':
+        return course_catalog.to_dict(orient='index')
 
 
-def gather(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False):
-    """Gathers the Course Catalogs for the given UW Campuses
-    @params:
-        'campuses': The Campuses to get the Time Schedules from
-        'update': Whether to update the course catalogs by scraping the course catalog
-                  website
-    Returns
-        A pandas DataFrame representing the Course Catalogs
-    """
-    if update:
-        return parse_catalogs(campuses=campuses)
-    else:
-        course_catalog = str(decompress(get_data(__package__, 'Total_Courses')).decode())
-        df = pd.DataFrame([x.split('\t') for x in course_catalog.split('\n')], columns=['Course_ID'] + COLUMN_NAMES)
-        df.set_index('Course_ID', inplace=True)
-        total = pd.DataFrame()
-        for campus in campuses:
-            campus_df = df[df['Campus'] == campus]
-            total = pd.concat([total, campus_df], axis=0)
-        return total
-
-
-def get_departments(campuses=['Seattle', 'Tacoma', 'Bothell']):
+def get_departments(campuses=['Seattle', 'Tacoma', 'Bothell'], struct='df',
+                    flatten='default'):
     """Returns the departments at UW for each campus
-    @params:
+    @params
         'campuses': The Campuses to get the departments from
+        'struct':   The Data Structure to return the department data in
+                    'df' -> Pandas DataFrame
+                    'dict' -> Python Dictionary
+        'flatten':  If struct='dict', return a flattened dictionary of departments.
+                    If struct='list', return a list of items specified by the 'flatten' parameter.
+                    Flatten options:
+                    struct='dict':
+                        'default':
+                            Campus
+                                College
+                                    Department Abbreviation -> Department Full Name
+                        'college':
+                            College
+                                Department Abbreviation -> Department Full Name
+                        'department':
+                            Department Abbreviation -> Department Full Name
+                        'campus':
+                            Campus
+                                Department Abbreviation -> Department Full Name
+                        'campege':
+                            Campus
+                                College
+                    struct='list':
+                        'college': Returns a list of all colleges in every campus given
+                                   in 'campuses'
+                        'dep-abbrev': Returns a list of all departments (abbreviations) 
+                                      in every campus given in 'campuses'
+                        'dep-full': Returns a list of all departments (full names) in
+                                    every campus given in 'campuses       
     Returns
-        A dictionary with department name abbreviations to full names.
+        struct='df' or struct='dict':
+            A Pandas DataFrame/Python Dictionary of the Departments for every
+            campus given in 'campuses'
+        struct='list':
+            A list of values specified by the 'flatten' parameter
     """
-    chosen = {}
-    departments = json.loads(decompress(get_data(__package__, 'Departments')))
-    for campus in campuses:
-        chosen[campus] = departments[campus]
-    return chosen
+    assert type(campuses) == list, 'Type of "campuses" must be list'
+    # Check if all campuses in 'campuses' are valid
+    assert all([c in ['Seattle', 'Bothell', 'Tacoma'] for c in list(map(str.title, campuses))])
+    assert type(struct) == str, 'Type of "struct" must be str'
+    assert struct in ['df', 'dict', 'list'], f'{struct} is not a valid argument for "struct"'
+    assert type(flatten) == str, 'Type of "flatten" must be str'
+    assert flatten in ['default', 'college', 'department', 'campus', 
+                       'campege', 'dep-abbrev', 'dep-full'], f'{flatten} is not a valid argument for "flatten"'
 
+    # Get UW Campus Course Catalog page sources, used for parallel processing
+    campus_source = lambda x: (requests.get(CAMPUSES[x]).text, x)
+
+    # Dictionary with UW Campus to Department Dictionary mappings
+    departments = {}
+
+    with cf.ThreadPoolExecutor() as executor:
+        pages = [executor.submit(campus_source, campus.title()) for campus in campuses]
+        for f in cf.as_completed(pages):
+            # Source -> Page Source for given UW Campus Course Catalog
+            source, campus = f.result()
+            departments[campus] = {}
+            source = BeautifulSoup(source.rsplit('class="col-md-4 uw-sidebar"', 1)[0], features='lxml')
+            # College Names at UW i.e. College of Built Environments, College of Engineering, etc...
+            college_names = [c.get_text() for c in source.find_all('h2', {'id': re.compile(r'[A-Za-z]+')})]
+            colleges = str(source).split('<h2 id=')
+            for i, college in enumerate(colleges[1:]):
+                departments[campus][college_names[i]] = {}
+                college = BeautifulSoup(college, features='lxml')
+                # Department Names are found in the anchor tags on the course catalog website
+                for dep_name in college.find_all('a'):
+                    # There are some non-breaking spaces ('\xa0', encoding='ISO-8859-1') which
+                    # are removed through the 'normalize' function
+                    dep_name = normalize('NFKD', dep_name.text)
+                    try:
+                        full_name, abbrev = dep_name.rsplit('(', 1)
+                    except ValueError:
+                        pass
+                    else:
+                        if '(' in dep_name:
+                            departments[campus][college_names[i]][abbrev.replace(' ', '')[:-1]] = \
+                                full_name.strip()
+
+    if struct == 'df':
+        df = pd.DataFrame().from_dict(
+            # Flatten dict for DataFrame construction
+            # [dn] -> Department Name, [dfull] -> Full Name, [c] -> Campus
+            {dn: dfull for c, d in departments.items() for dn, dfull in d.items()}, 
+            orient='index', columns=['Department Name']
+        )
+
+        def check_campus(department_name):
+            # Returns the campus the given 'department' is in
+            # for [c] -> campus, [dps] -> departments
+            for c, dps in departments.items():
+                if department_name in dps.values():
+                    return c
+
+        df['Campus'] = df['Department Name'].apply(check_campus)
+        return df
+    elif struct == 'dict':
+        return {
+            # Dict with department abbreviation to full-names mappings without campus sub-dicts
+            # [dn] -> Department Name, [dfull] -> Full Name, [c] -> Campus
+            dn: dfull for c, d in departments.items() for dn, dfull in d.items()
+        } if flatten else departments
+
+#print(get_departments(struct='dict', flatten=False))

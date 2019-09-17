@@ -1,6 +1,6 @@
 
 
-from .parse_courses import gather as course_catalogs
+from .parse_courses import parse_catalogs as course_catalogs
 from .parse_courses import get_departments as departments
 
 from .parse_schedules import quarter_dates as get_quarter_ranges
