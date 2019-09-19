@@ -22,7 +22,7 @@ Arg | Type | Default | Description
 
 ### Returns
 
-A *Pandas DataFrame*, *Python Dictionary* or *List* (depending on the `struct` parameter) representing the departments for all UW Campuses in the 'campuses' list. 
+A *Pandas DataFrame*, *Python Dictionary* or *List* (depending on the `struct` parameter) representing the departments for all UW Campuses in the `campuses` list. 
 
 ### Storing Information in Files
 

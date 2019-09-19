@@ -22,7 +22,7 @@ Arg | Type | Default | Description
 
 ### Returns
 
-A *Pandas DataFrame* or *Python Dictionary* (depending on the `struct` parameter) representing the course catalogs for all UW Campuses in the 'campuses' list. 
+A *Pandas DataFrame* or *Python Dictionary* (depending on the `struct` parameter) representing the course catalogs for all UW Campuses in the `campuses` list. 
 
 ### Storing Information in Files
 

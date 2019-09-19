@@ -2,7 +2,7 @@
 
 import re, json, os, requests
 from bs4 import BeautifulSoup
-from zlib import compress, decompress
+from zlib import decompress
 from pkgutil import get_data
 import concurrent.futures as cf
 
@@ -118,8 +118,10 @@ def get_buildings(campuses=['Seattle', 'Bothell', 'Tacoma']):
     Returns
         A dictionary with building name abbreviations to full names.
     """
+    assert all([c in ['Seattle', 'Bothell', 'Tacoma'] for c in list(map(str.title, campuses))])
     buildings = {}
-    campuses = [seattle, bothell, tacoma]
+    functions = [seattle, bothell, tacoma]
+    campuses = [function for function in functions if function.__name__.title() in campuses]
     with cf.ThreadPoolExecutor() as executor:
         results = [executor.submit(campus) for campus in campuses]
         for f in cf.as_completed(results):
@@ -136,10 +138,11 @@ def geocode(buildings=[], campuses=['Seattle', 'Bothell', 'Tacoma']):
     Returns
         A dictionary with data for each building in the buildings list
     """
-    coordinates = json.loads(decompress(get_data(__package__, 'Coordinates')))
+    assert all([c in ['Seattle', 'Bothell', 'Tacoma'] for c in list(map(str.title, campuses))])
+    coordinates = json.loads(decompress(get_data(__package__, 'Coordinates.file')))
     all_campuses = {}
     for campus, buildings_ in coordinates.items():
-        if campus in campuses:
+        if campus.title() in campuses:
             for building, coords in buildings_.items():
                 if building in buildings or not buildings:
                     all_campuses[building] = coords

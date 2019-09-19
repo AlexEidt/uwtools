@@ -11,6 +11,7 @@ from itertools import chain
 from datetime import datetime as dttime
 from datetime import timedelta
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 import concurrent.futures as cf
@@ -48,8 +49,7 @@ COURSE_KEYS = ['Course Name', 'Seats', 'SLN', 'Section', 'Type', 'Days', 'Time',
 def get_academic_year(year):
     """Returns the current academic school year
     @params
-        'year': Optional parameter if user wishes to search for a specific 
-                Academic School Year.
+        'year': A specific Academic School Year.
     Returns
         The Academic School Year. Example: 2019-2020 -> 1920
     """
@@ -133,15 +133,27 @@ def get_quarter(filter_=False, type_='current'):
     # quarter will be Summer (SUM) and the upcoming quarter will be Autumn (AUT)
     current_dates = quarter_dates()
     previous_dates = quarter_dates(year=get_academic_year(dttime.now().year - 1))
-    for qtr in ['SUM', 'SUMA', 'SUMB']:
-        current_dates[qtr] = previous_dates[qtr]
-    current_quarters = [q for q, d in zip(QUARTERS.keys(), current_dates.values()) 
+    ranges = list(current_dates.values())[:-2]
+    # Change each quarters ending date to be the next quarters starting date minus one day
+    for i in range(len(ranges)):
+        # If the quarter is the last quarter (SUM), use AUT quarters starting date
+        if i == len(ranges) - 1:
+            ranges[i][1] = ranges[0][0] - timedelta(days=1)
+            continue
+        ranges[i][1] = ranges[i + 1][0] - timedelta(days=1)
+    ranges += list(current_dates.values())[-2:]
+    prev = list(previous_dates.values())
+    for i in range(3, 6):
+        ranges[i] = prev[i]
+    ranges[3][1] = ranges[0][0] - timedelta(days=1)
+    current_quarters = [q for q, d in zip(QUARTERS.keys(), ranges) 
                         if d[0] <= datetime.date.today() <= d[1]]
-    print(current_dates)
     if type_ == 'upcoming':
         quarter = ''.join({QUARTERS[q] for q in current_quarters})
         if filter_:
             return 'SUM' if 'SUM' in quarter else quarter
+        if 'SUM' in quarter:
+            return 'SUM, SUMA, SUMB'
         return quarter
     elif type_ == 'current':
         if filter_:
@@ -149,8 +161,6 @@ def get_quarter(filter_=False, type_='current'):
             return 'SUM' if 'SUM' in quarter else quarter
         return ', '.join(current_quarters)
     return None
-
-print(get_quarter(filter_=True, type_='upcoming'))
 
 
 def parse_departments(campus, year, quarter, progress_bar):
@@ -332,7 +342,7 @@ def to_time(time1):
 
 
 def gather(year, quarter, campuses=['Seattle', 'Tacoma', 'Bothell'], struct='df',
-           include_datetime=False, show_progress=False):
+           include_datetime=False, show_progress=False, json_ready=False):
     """Gathers the Time Schedules for the given UW Campuses
     @params:
         'year': The year to get time schedules from
@@ -348,6 +358,9 @@ def gather(year, quarter, campuses=['Seattle', 'Tacoma', 'Bothell'], struct='df'
                             WARNING: Including the datetime may result in slower performance.
         'show_progress': Displays a progress meter in the console if True,
                          otherwise displays nothing
+        'json_ready': If struct='dict', and you would like to store the dict in a .json file,
+                      json_ready removes all the datetime objects to prevent TypeErrors
+                      when converting to JSON. 
     Returns:
         A Pandas DataFrame/Python Dictionary representing the Time Schedules 
         for the given courses
@@ -358,6 +371,7 @@ def gather(year, quarter, campuses=['Seattle', 'Tacoma', 'Bothell'], struct='df'
     assert struct in ['df', 'dict'], f'{struct} is not a valid argument for "struct"'
     assert type(include_datetime) == bool, 'Type of "include_datetime" must be bool'
     assert type(show_progress) == bool, 'Type of "show_progress" must be bool'
+    assert type(json_ready) == bool, 'Type of "json_ready" must be bool'
 
     time_schedules = pd.DataFrame()
     if show_progress:
@@ -396,7 +410,11 @@ def gather(year, quarter, campuses=['Seattle', 'Tacoma', 'Bothell'], struct='df'
         time_schedules = time_schedules[['Course Name', 'Seats', 'SLN', 'Section', 'Type', 'Time', 
                     'Start', 'End', 'Building', 'Room Number', 'Campus', 'Quarter', 'Year']]
 
+    time_schedules.index = range(len(time_schedules.index))
+    time_schedules.index.name = 'Index'
     if struct == 'df':
         return time_schedules
     elif struct == 'dict':
-        return time_schedules.to_dict(orient='index')
+        if json_ready and include_datetime:
+            time_schedules.drop(['Start', 'End'], axis=1, inplace=True)
+        return time_schedules.to_dict(orient='records')
