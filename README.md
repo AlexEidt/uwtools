@@ -1,7 +1,7 @@
 # uwtools
 
 <p align="center">
-    <img src="uwtoolslogo.png" alt="UW Tools Logo">
+    <img src="uwtoolslogo.png" alt="UW Tools Logo" width=500>
 </p>
 
 The *uwtools* library is inspired by the <a href="https://github.com/pandas-dev/pandas">*Pandas*</a> library, incorporating similar styles in parameter declaration and ease of use.
@@ -36,3 +36,10 @@ Method | Description
 <a href='https://github.com/AlexEidt/uwtools/wiki/Time-Schedules'>time_schedules</a> | Parse the UW Time Schedules from Winter 2003 - Present for UW Campuses
 <a href='https://github.com/AlexEidt/uwtools/wiki/Buildings'>buildings</a> | Get a list of buildings at each UW Campus with full names included
 <a href='https://github.com/AlexEidt/uwtools/wiki/Geocode'>geocode</a> | Find coordinates for buildings at each UW Campus
+
+## Dependencies
+
+* <a href="https://2.python-requests.org/en/master/">Requests</a>
+* <a href="https://www.crummy.com/software/BeautifulSoup/">BeautifulSoup</a>
+* <a href="https://pandas.pydata.org/">Pandas</a>
+* <a href="https://github.com/tqdm/tqdm">tqdm</a>
