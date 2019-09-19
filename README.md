@@ -1,7 +1,7 @@
 # uwtools
 
 <p align="center">
-    <img src="uwtoolslogo.png" alt="UW Tools Logo" width=450>
+    <img src="uwtoolslogo.png" alt="UW Tools Logo">
 </p>
 
 The *uwtools* library is inspired by the <a href="https://github.com/pandas-dev/pandas">*Pandas*</a> library, incorporating similar styles in parameter declaration and ease of use.
