@@ -27,6 +27,7 @@ pip install uwtools
 ## <a href="https://github.com/AlexEidt/uwtools/wiki">Documentation</a>
 
 Method | Description
+--- | ---
 <a href='https://github.com/AlexEidt/uwtools/wiki/Course-Catalogs'>course_catalogs</a> | Parse the UW Course Catalogs
 <a href='https://github.com/AlexEidt/uwtools/wiki/Departments'>departments</a> | Get information about UW Departments
 <a href='https://github.com/AlexEidt/uwtools/wiki/Get-Quarter-Ranges'>get_quarter_ranges</a> | Find out the time ranges of quarters at UW as `datetime` objects
