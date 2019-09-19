@@ -9,4 +9,3 @@ from .parse_schedules import gather as time_schedules
 
 from .parse_buildings import get_buildings as buildings
 from .parse_buildings import geocode
-from .parse_buildings import check_campus

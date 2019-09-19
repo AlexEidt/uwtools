@@ -111,32 +111,22 @@ def tacoma():
     return buildings
 
 
-def get_buildings(campuses=['Seattle', 'Bothell', 'Tacoma'], update=False):
+def get_buildings(campuses=['Seattle', 'Bothell', 'Tacoma']):
     """Returns the Buildings at UW for each campus
     @params:
         'campuses': The Campuses to get the Buildings from
-        'update': Whether to update the buildings by scraping the buildings
-                  website
     Returns
         A dictionary with building name abbreviations to full names.
     """
-    if update:
-        buildings = {}
-        campuses = [seattle, bothell, tacoma]
-        with cf.ThreadPoolExecutor() as executor:
-            results = [executor.submit(campus) for campus in campuses]
-            for f in cf.as_completed(results):
-                for key, value in f.result().items():
-                    buildings[key] = value
-        return buildings
-    else:
-        chosen = {}
-        buildings = json.loads(decompress(get_data(__package__, 'UW_Buildings')))
-        for campus in campuses:
-            chosen[campus] = buildings[campus]
-        return chosen
+    buildings = {}
+    campuses = [seattle, bothell, tacoma]
+    with cf.ThreadPoolExecutor() as executor:
+        results = [executor.submit(campus) for campus in campuses]
+        for f in cf.as_completed(results):
+            for key, value in f.result().items():
+                buildings[key] = value
+    return buildings
 
-print(get_buildings(update=True))
 
 def geocode(buildings=[], campuses=['Seattle', 'Bothell', 'Tacoma']):
     """Geocodes UW Buildings
@@ -154,17 +144,3 @@ def geocode(buildings=[], campuses=['Seattle', 'Bothell', 'Tacoma']):
                 if building in buildings or not buildings:
                     all_campuses[building] = coords
     return all_campuses
-
-
-def check_campus(building):
-    """Checks which campus a building is on
-    @params
-        'building': The building to check
-    Returns
-        The campus the building is on. If no campus is found, returns None.
-    """
-    coordinates = json.loads(decompress(get_data(__package__, 'Coordinates')))
-    for campus, buildings in coordinates.items():
-        if building in buildings:
-            return campus
-    return None

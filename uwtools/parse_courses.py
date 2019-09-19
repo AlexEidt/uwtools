@@ -3,7 +3,7 @@
 import re, time, json, os, requests
 import pandas as pd
 import concurrent.futures as cf
-from threading import Thread, Lock
+from threading import Thread
 from zlib import compress, decompress
 from pkgutil import get_data
 from tqdm import tqdm
@@ -19,6 +19,30 @@ CAMPUSES = {
 COLUMN_NAMES = ['Campus', 'Department Name', 'Course Number', 'Course Name', 'Credits',
                 'Areas of Knowledge', 'Quarters Offered', 'Offered with', 
                 'Prerequisites', 'Co-Requisites', 'Description']
+
+
+def check_campus(department_name, department_dict, val):
+    """Returns the campus/college the given 'department_name' is in
+    depending on the value of the 'val' parameter
+    @params
+        'department_name': The full name of the department to search for
+        'department_dict': The dictionary of department information to search through
+        'val': Can either be 'Campus' or 'College', used to determine which value
+               to return
+    Returns
+        The campus or college the given 'department_name' is in
+    """
+    # for [c] -> campus, [college] -> Colleges in Campus
+    for c, college in department_dict.items():
+        for col_name, deps in college.items():
+            for dep_a, dep_f in deps.items():
+                if val == 'Campus':
+                    if dep_f == department_name:
+                        return c
+                elif val == 'College':
+                    if dep_f == department_name or dep_a == department_name:
+                        return col_name
+
 
 find_all_re = re.compile(r'[A-Z& ]+/[A-Z& ]+/[A-Z& ]+\d+')
 find_one_re = re.compile(r'[A-Z& ]+/[A-Z& ]+\d+')
@@ -202,6 +226,9 @@ def parse_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma'], struct='df',
     """Parses the UW Course Catalogs for the given campuses
     @params
         'campuses': The Campuses to get the course catalogs from
+                    Can either be a list of campuses, or a dictionary where
+                    the keys are the campuses and values are a list of departments
+                    to parse from that campus
         'struct': The Data Structure to return the course catalog data in
                   'df' -> Pandas DataFrame
                   'dict' -> Python Dictionary
@@ -213,7 +240,7 @@ def parse_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma'], struct='df',
     """
     assert type(campuses) == list or type(campuses) == dict, 'Type of "campuses" must be list or dict'
     if type(campuses) == dict:
-        for key, value in campuses:
+        for key, value in campuses.items():
             if type(key) != str or type(value) != list:
                 raise ValueError('''"campuses" dict must have keys of type str and
                                      values of type list''')
@@ -271,6 +298,18 @@ def parse_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma'], struct='df',
             # All the courses in the department
             courses = []
             dep_file = department_link.get('href')
+
+            # If the user entered a dict as the 'campuse' parameter, departments
+            # are checked here
+            try:
+                # The String in the conditional is the abbreviated Department Name i.e EE
+                # for Electrical Engineering
+                if normalize('NFKD', department_link.text).rsplit('(', 1) \
+                    [-1].replace(' ', '')[:-1] not in campuses[campus]:
+                    return None
+            except TypeError:
+                pass
+                
             # The only links that are used for finding departments are those
             # of the format [a-z]+.html
             if '/' not in dep_file and dep_file.endswith('.html') \
@@ -348,20 +387,36 @@ def parse_catalogs(campuses=['Seattle', 'Bothell', 'Tacoma'], struct='df',
     # by the user
     course_catalog = pd.DataFrame()
 
-    # Parse all three campuses in parallel for faster run time
+    # Parse all three campuses in parallel for faster run time as well
+    # as get the departments dictionary from the 'get_departments' method
+    # to add a 'Colleges' column to categorize all courses in their College.
     with cf.ThreadPoolExecutor() as executor:
         results = []
+        campuses_for_dict = campuses
+        if type(campuses) == dict:
+            campuses_for_dict = list(campuses.keys())
+        results.append(executor.submit(get_departments, campuses=campuses_for_dict, struct='dict'))
         for campus, link in CAMPUSES.items():
-            if campus in campuses: 
-                results.append(executor.submit(parse_campus, link, campus))
+            if campus.title() in campuses: 
+                results.append(executor.submit(parse_campus, link, campus.title()))
         for result in cf.as_completed(results):
-            course_catalog = pd.concat([course_catalog, result.result()])
+            returned = result.result()
+            if type(returned) == dict:
+                # Departments dict used to create the 'College' column in the main DataFrame
+                departments = returned
+            else:
+                course_catalog = pd.concat([course_catalog, returned])
 
     # Add Course ID as the index of the DataFrame to allow for easy course searching
     # Course ID = Department Name + Course Number
     # Example: EE235 = EE + 235
     course_catalog['Course ID'] = course_catalog['Department Name'] + course_catalog['Course Number']
+    course_catalog['College'] = course_catalog['Department Name'].apply(check_campus, args=(departments, 'College'))
     course_catalog.set_index('Course ID', inplace=True)
+    # Re-order indices to place 'College' right after the 'Department Name'
+    course_catalog = course_catalog[['Campus', 'Department Name', 'College', 'Course Number', 'Course Name', 'Credits',
+                                    'Areas of Knowledge', 'Quarters Offered', 'Offered with', 
+                                    'Prerequisites', 'Co-Requisites', 'Description']]
     
     if struct == 'df':
         return course_catalog
@@ -418,6 +473,9 @@ def get_departments(campuses=['Seattle', 'Tacoma', 'Bothell'], struct='df',
     assert type(flatten) == str, 'Type of "flatten" must be str'
     assert flatten in ['default', 'college', 'department', 'campus', 
                        'campege', 'dep-abbrev', 'dep-full'], f'{flatten} is not a valid argument for "flatten"'
+    if struct == 'list':
+        assert flatten in ['college', 'dep-abbrev', 'dep-full'], f'''{flatten} is not a valid 
+                                argument for "flatten" with 'struct="list"' '''
 
     # Get UW Campus Course Catalog page sources, used for parallel processing
     campus_source = lambda x: (requests.get(CAMPUSES[x]).text, x)
@@ -425,6 +483,7 @@ def get_departments(campuses=['Seattle', 'Tacoma', 'Bothell'], struct='df',
     # Dictionary with UW Campus to Department Dictionary mappings
     departments = {}
 
+    # Department Parsing
     with cf.ThreadPoolExecutor() as executor:
         pages = [executor.submit(campus_source, campus.title()) for campus in campuses]
         for f in cf.as_completed(pages):
@@ -448,32 +507,58 @@ def get_departments(campuses=['Seattle', 'Tacoma', 'Bothell'], struct='df',
                     except ValueError:
                         pass
                     else:
-                        if '(' in dep_name:
-                            departments[campus][college_names[i]][abbrev.replace(' ', '')[:-1]] = \
-                                full_name.strip()
+                        if '(' in dep_name and '--' not in dep_name:
+                            abbrev = abbrev.replace(' ', '')[:-1]
+                            if not abbrev.startswith('See'):
+                                departments[campus][college_names[i]][abbrev] = \
+                                    full_name.strip()
 
     if struct == 'df':
         df = pd.DataFrame().from_dict(
             # Flatten dict for DataFrame construction
             # [dn] -> Department Name, [dfull] -> Full Name, [c] -> Campus
-            {dn: dfull for c, d in departments.items() for dn, dfull in d.items()}, 
+            {dep_abb: dep_full for college in departments.values() 
+                               for department in college.values()
+                               for dep_abb, dep_full in department.items()}, 
             orient='index', columns=['Department Name']
         )
-
-        def check_campus(department_name):
-            # Returns the campus the given 'department' is in
-            # for [c] -> campus, [dps] -> departments
-            for c, dps in departments.items():
-                if department_name in dps.values():
-                    return c
-
-        df['Campus'] = df['Department Name'].apply(check_campus)
+        df.index.name = 'Department'
+        df['Campus'] = df['Department Name'].apply(check_campus, args=(departments, 'Campus'))
+        df['College'] = df['Department Name'].apply(check_campus, args=(departments, 'College'))
         return df
     elif struct == 'dict':
-        return {
-            # Dict with department abbreviation to full-names mappings without campus sub-dicts
-            # [dn] -> Department Name, [dfull] -> Full Name, [c] -> Campus
-            dn: dfull for c, d in departments.items() for dn, dfull in d.items()
-        } if flatten else departments
-
-#print(get_departments(struct='dict', flatten=False))
+        if flatten == 'default':
+            return departments
+        elif flatten == 'college':
+            return {cname: dep for college in departments.values() for cname, dep in college.items()}
+        elif flatten == 'department':
+            return {dep_abb: dep_full for college in departments.values() 
+                               for department in college.values()
+                               # [dep_abb] -> Abbreviated Department Name
+                               # [dep_full] -> Full Department Name
+                               for dep_abb, dep_full in department.items()}
+        elif flatten == 'campus':
+            campus = {}
+            # [camp] -> Campus, [col] -> College
+            for camp, col in departments.items():
+                campus[camp] = {}
+                # [dep] -> Department dict
+                for dep in col.values():
+                    # [dn] -> Abbreviated Department Name
+                    # [df] -> Full Department Name
+                    for dn, df in dep.items():
+                        campus[camp][dn] = df
+            return campus
+        elif flatten == 'campege':
+            return {campus: list(clg.keys()) for campus, clg in departments.items()}
+    elif struct == 'list':
+        if flatten == 'college':
+            return [name for college in departments.values() for name in college.keys()]
+        elif flatten == 'dep-abbrev':
+            return [dep_abb for college in departments.values() 
+                            for col_name in college.values() 
+                            for dep_abb in col_name.keys()]
+        elif flatten == 'dep-full':
+            return [dep_full for college in departments.values() 
+                             for col_name in college.values() 
+                             for dep_full in col_name.values()]

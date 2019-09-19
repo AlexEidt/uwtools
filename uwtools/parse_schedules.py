@@ -9,8 +9,7 @@ from pkgutil import get_data
 from zlib import compress, decompress
 from itertools import chain
 from datetime import datetime as dttime
-from datetime import timedelta as td
-from threading import Thread
+from datetime import timedelta
 import pandas as pd
 from tqdm import tqdm
 from bs4 import BeautifulSoup
@@ -46,7 +45,7 @@ QUARTERS = {
 
 COURSE_KEYS = ['Course Name', 'Seats', 'SLN', 'Section', 'Type', 'Days', 'Time', 'Building', 'Room Number']
 
-def get_academic_year(year=None):
+def get_academic_year(year):
     """Returns the current academic school year
     @params
         'year': Optional parameter if user wishes to search for a specific 
@@ -54,13 +53,11 @@ def get_academic_year(year=None):
     Returns
         The Academic School Year. Example: 2019-2020 -> 1920
     """
-    if year is None:
-        current_year = dttime.now().year
+    if year == dttime.now().year:
         if dttime.now().month >= 9:
-            return str(current_year)[2:] + str(current_year + 1)[2:]
-        return str(current_year - 1)[2:] + str(current_year)[2:]
-    else:
-        return year
+            return str(year)[2:] + str(year + 1)[2:]
+        return str(year - 1)[2:] + str(year)[2:]
+    return str(year)[2:] + str(year + 1)[2:]
 
 
 def quarter_dates(year=None):
@@ -81,7 +78,10 @@ def quarter_dates(year=None):
         end = int(year[2:])
         assert len(year) == 4 and start >= 14 and end == start + 1, 'Invalid Year Argument'
     # Get the academic school year. Example: 2019-2020 -> 1920
-    academic_year = get_academic_year(year=year)
+    if year is None:
+        academic_year = get_academic_year(dttime.now().year)
+    else:
+        academic_year = year
 
     # Check the UW Academic Calendar for the date ranges for each calendar
     uw_request = requests.get(f'https://www.washington.edu/students/reg/{academic_year}cal.html')
@@ -110,7 +110,7 @@ def quarter_dates(year=None):
     return {}
 
 
-def get_quarter(filter_=False, type_='current', include_year=False):
+def get_quarter(filter_=False, type_='current'):
     """Calculates the current quarter based on the current date
     @params
         'filter_': Filters out the A and B terms of Summer Quarter if necessary if True
@@ -122,37 +122,35 @@ def get_quarter(filter_=False, type_='current', include_year=False):
         String representing the current quarter(s) 
         NOTE: Summer Quarter has two terms, A and B
     """
+    assert type(filter_) == bool, 'Type of "filter_" must be bool'
+    assert type(type_) == str, 'Type of "type_" must be str'
+    assert type_ in ['current', 'upcoming'], 'Value of "type_" must be "current" or "upcoming"'
+
     # The range_ list is a list of lists with each list containing two datetime objects
     # representing the time range of each quarter. The time range is the first day of the quarter
     # to the last day before the next quarter begins. 
     # This means that if the current date falls in a quarter break, such as Summer break, the current
     # quarter will be Summer (SUM) and the upcoming quarter will be Autumn (AUT)
-    range_ = []
-    d = list(quarter_dates().values())
-    for i in range(4):
-        range_.append([d[i][0] if i < 3 else d[i][0] - td(days=365), 
-                        (d[i + 1][0] if i < 3 else (d[0][0] - td(days=1)))])
-    current_quarters = [q for q, d in zip(QUARTERS.keys(), range_) if d[0] < datetime.date.today() < d[1]]
-    year = dttime.now().year
+    current_dates = quarter_dates()
+    previous_dates = quarter_dates(year=get_academic_year(dttime.now().year - 1))
+    for qtr in ['SUM', 'SUMA', 'SUMB']:
+        current_dates[qtr] = previous_dates[qtr]
+    current_quarters = [q for q, d in zip(QUARTERS.keys(), current_dates.values()) 
+                        if d[0] <= datetime.date.today() <= d[1]]
+    print(current_dates)
     if type_ == 'upcoming':
-        if include_year:
-            quarter = ''.join({QUARTERS[q] for q in current_quarters})
-            if quarter == 'WIN':
-                return quarter, year + 1
-            return quarter, year
+        quarter = ''.join({QUARTERS[q] for q in current_quarters})
+        if filter_:
+            return 'SUM' if 'SUM' in quarter else quarter
         return quarter
     elif type_ == 'current':
         if filter_:
             quarter = ''.join(current_quarters)
-            if include_year:
-                return 'SUM', year if 'SUM' in quarter else quarter, year + 1 if quarter == 'WIN' else year
             return 'SUM' if 'SUM' in quarter else quarter
-        if include_year:
-            if 'SUM' in current_quarters:
-                return [(q, str(year)) for q in current_quarters]
-            return ''.join(current_quarters), year
         return ', '.join(current_quarters)
     return None
+
+print(get_quarter(filter_=True, type_='upcoming'))
 
 
 def parse_departments(campus, year, quarter, progress_bar):
@@ -165,84 +163,74 @@ def parse_departments(campus, year, quarter, progress_bar):
     NOTE:
         For all academic years before and including 2006-2007, some 
         4-digit (and some older 5-digit) SLN codes will not work.
+    Returns
+        A pandas DataFrame object with the time schedule information for the given year
+        and quarter combination for the given campus.
     """
+    # Find current quarter at UW based on the current date
+    current_courses_link = '{}{}{}/'.format(CAMPUSES_TIMES[campus]['link'], 
+                                            quarter, year)
 
-    def parse(year, current_quarter):
-        """Parses the UW Time Schedule for the given year, and quarter
-        @params:
-            'year': The year to get Time Schedules from
-            'current_quarter': The quarter to parse
-        Returns
-            A pandas DataFrame object with the time schedule information for the given year
-            and quarter combination for the given campus.
-        """
-        # Parses the time schedule for the given year and quarter based on availability
+    # Check to see if the Time Schedules for the current quarter is available.
+    # If neither of the above can be parsed, the script returns None.
+    current_courses_requests = requests.get(current_courses_link)
+    if current_courses_requests.ok:
+        courses_link = '{}{}{}/'.format(CAMPUSES_TIMES[campus]['schedule'], 
+                                        quarter, year)
+    else:
+        return None
+    
+    is_bothell = campus == 'Bothell'
+    # The UW Bothell Time Schedule has a different layout than those from Seattle and Tacoma.
+    if is_bothell:
+        dep_soup = re.compile(r'<h2>[A-Z][a-z]+ \d{4} Time Schedule</h2>').split(
+                        current_courses_requests.text, 1)[-1]
+        dep_soup = BeautifulSoup(re.compile(r'<hr ?/>').split(dep_soup, 1)[-1], features='lxml')
+    else:
+        dep_soup = BeautifulSoup(current_courses_requests.text, features='lxml')
+    # 'anchor_tag' is a list of all the Department links that will be parsed to gather
+    # the necessary Time Schedule Information
+    anchor_tag = []
+    for link in dep_soup.find_all('a'):
+        department = link.get('href')
+        if department:
+            page = department.replace(courses_link, '', 1)
+            if '/' not in page and bool('.html' in page or courses_link in department):
+                anchor_tag.append((department.rsplit('#', 1)[0], link.text))
 
-        # Find current quarter at UW based on the current date
-        current_courses_link = '{}{}{}/'.format(CAMPUSES_TIMES[campus]['link'], 
-                                                current_quarter, year)
+    list_items = dep_soup.find_all('li')
+    get_course = lambda x: x.rsplit('(', 1)[-1].split(')', 1)[0]
+    lowercase_re = re.compile(r'[a-z]+')
+    campus_schedules = []
 
-        # Check to see if the Time Schedules for the current quarter is available.
-        # If neither of the above can be parsed, the script returns None.
-        current_courses_requests = requests.get(current_courses_link)
-        if current_courses_requests.ok:
-            courses_link = '{}{}{}/'.format(CAMPUSES_TIMES[campus]['schedule'], 
-                                            current_quarter, year)
-        else:
-            return None
-        
-        is_bothell = campus == 'Bothell'
+    local_parse_schedules = parse_schedules
 
-        # The UW Bothell Time Schedule has a different layout than those from Seattle and Tacoma.
-        if is_bothell:
-            dep_soup = re.compile(r'<h2>[A-Z][a-z]+ \d{4} Time Schedule</h2>').split(
-                            current_courses_requests.text, 1)[-1]
-            dep_soup = BeautifulSoup(re.compile(r'<hr ?/>').split(dep_soup, 1)[-1], features='lxml')
-        else:
-            dep_soup = BeautifulSoup(current_courses_requests.text, features='lxml')
-        # 'anchor_tag' is a list of all the Department links that will be parsed to gather
-        # the necessary Time Schedule Information
-        anchor_tag = []
-        for link in dep_soup.find_all('a'):
-            department = link.get('href')
-            if department:
-                page = department.replace(courses_link, '', 1)
-                if '/' not in page and bool('.html' in page or courses_link in department):
-                    anchor_tag.append((department.rsplit('#', 1)[0], link.text))
-
-        list_items = dep_soup.find_all('li')
-        get_course = lambda x: x.rsplit('(', 1)[-1].split(')', 1)[0]
-        lowercase_re = re.compile(r'[a-z]+')
-        campus_schedules = []
-
-        local_parse_schedules = parse_schedules
-
-        with cf.ThreadPoolExecutor() as executor:
-            results = []
-            # Go through the Main Time Schedule page for the given quarter and year and parse each department's page
-            for link, li in zip(anchor_tag, list_items):
+    with cf.ThreadPoolExecutor() as executor:
+        results = []
+        # Go through the Main Time Schedule page for the given quarter and year and parse each department's page
+        for link, li in zip(anchor_tag, list_items):
+            if progress_bar is not None:
                 progress_bar.update()
-                dep = get_course(li.get_text()).upper() if is_bothell else get_course(link[1])
-                dep_schedule = '{}{}'.format(courses_link, link[0].rsplit('/', 1)[-1])
-                if not re.search(lowercase_re, dep):
-                    results.append(
-                        executor.submit(local_parse_schedules, dep_schedule)
-                    )
-            for result in cf.as_completed(results):
-                courses = result.result()
-                # If no courses are found for the given department, they are not added to the main list
-                if courses:
-                    campus_schedules.append(courses) 
-                    
-        total = [y for x in campus_schedules for y in x] 
-        # Store data in a pandas DataFrame
-        df = pd.DataFrame(total, columns=COURSE_KEYS)
-        df['Campus'] = campus
-        df['Year'] = year
-        df['Quarter'] = current_quarter
-        return df
+            dep = get_course(li.get_text()).upper() if is_bothell else get_course(link[1])
+            dep_schedule = '{}{}'.format(courses_link, link[0].rsplit('/', 1)[-1])
+            if not re.search(lowercase_re, dep):
+                results.append(
+                    executor.submit(local_parse_schedules, dep_schedule)
+                )
+        for result in cf.as_completed(results):
+            courses = result.result()
+            # If no courses are found for the given department, they are not added to the main list
+            if courses:
+                campus_schedules.append(courses) 
+                
+    total = [y for x in campus_schedules for y in x] 
+    # Store data in a pandas DataFrame
+    df = pd.DataFrame(total, columns=COURSE_KEYS)
+    df['Campus'] = campus
+    df['Year'] = year
+    df['Quarter'] = quarter
 
-    return parse(year, quarter)
+    return df
 
 
 fill = re.compile(r'\d+ */ *\d+[A-Z]?')
@@ -319,12 +307,13 @@ switch_pm = lambda t: 'AM' if t.strip() == 'PM' else 'PM'
 
 
 def to_time(time1):
-    """Checks if the two times overlap
+    """Converts the given time to a time object
     @params
-        'time1': First time to check
-        'time2': Second time to check
+        'time1': Time of format: HHMM-HHMM
+                 Example: 930-1120
     Returns 
-        True if there is overlap, otherwise False
+        The converted times (split by '-') into time
+        objects 
     """
     if time1:
         try:
@@ -342,48 +331,72 @@ def to_time(time1):
     return None
 
 
-def startend(times, start):
-    times = to_time(times)
-    if times:
-        if start:
-            return times[0]
-        return times[1]
-    return None
-
-
-def gather(year, quarter, campuses=['Seattle', 'Tacoma', 'Bothell'], include_datetime=False):
+def gather(year, quarter, campuses=['Seattle', 'Tacoma', 'Bothell'], struct='df',
+           include_datetime=False, show_progress=False):
     """Gathers the Time Schedules for the given UW Campuses
     @params:
         'year': The year to get time schedules from
         'quarter': The specific quarter to get time schedules from
         'campuses': The Campuses to get the Time Schedules from
-        'include_datetime': Adds two columns to the DataFrame, ['Start', 'End'] which
+        'struct': The Data Structure to return the Time Schedule data in
+                  'df' -> Pandas DataFrame
+                  'dict' -> Python Dictionary
+        'include_datetime': Adds two columns to the DataFrame/Dict, ['Start', 'End'] which
                             are datetime objects representing the start and ending times for
                             the course. This is useful when checking if courses overlap
                             or other analysis relating to duration of courses, etc...
                             WARNING: Including the datetime may result in slower performance.
+        'show_progress': Displays a progress meter in the console if True,
+                         otherwise displays nothing
     Returns:
-        A Pandas DataFrame representing the Time Schedules for the given courses
+        A Pandas DataFrame/Python Dictionary representing the Time Schedules 
+        for the given courses
     """
-    total = pd.DataFrame()
-    progress_bar = tqdm()
+    # Check if all campuses in 'campuses' are valid
+    assert all([c in ['Seattle', 'Bothell', 'Tacoma'] for c in list(map(str.title, campuses))])
+    assert type(struct) == str, 'Type of "struct" must be str'
+    assert struct in ['df', 'dict'], f'{struct} is not a valid argument for "struct"'
+    assert type(include_datetime) == bool, 'Type of "include_datetime" must be bool'
+    assert type(show_progress) == bool, 'Type of "show_progress" must be bool'
 
+    time_schedules = pd.DataFrame()
+    if show_progress:
+        progress_bar = tqdm()
+
+    # Parse all UW Time Schedules for each campus in parallel
     with cf.ThreadPoolExecutor() as executor:
         results = []
         for campus in campuses:
-            results.append(executor.submit(parse_departments, campus, int(year), quarter, progress_bar))
+            results.append(
+                executor.submit(parse_departments, campus.title(), int(year), quarter, 
+                                progress_bar if show_progress else None)
+            )
         for result in cf.as_completed(results):
             schedule = result.result()
             if schedule is not None:
-                total = pd.concat([total, schedule])
+                time_schedules = pd.concat([time_schedules, schedule])
+
     if include_datetime:
-        total['Start'] = pd.to_datetime(total['Time'].apply(startend, args=(True,)), errors='ignore', format='%H:%M:%S').dt.time
-        total['End'] = pd.to_datetime(total['Time'].apply(startend, args=(False,)), errors='ignore', format='%H:%M:%S').dt.time
-        total = total[['Course Name', 'Seats', 'SLN', 'Section', 'Type', 'Time', 
+
+        def startend(times, start):
+            times = to_time(times)
+            if times:
+                if start:
+                    return times[0]
+                return times[1]
+            return None
+
+        time_schedules['Start'] = pd.to_datetime(
+            time_schedules['Time'].apply(startend, args=(True,)), errors='ignore', format='%H:%M:%S'
+        ).dt.time
+        time_schedules['End'] = pd.to_datetime(
+            time_schedules['Time'].apply(startend, args=(False,)), errors='ignore', format='%H:%M:%S'
+        ).dt.time
+        # Re-order indices of DataFrame
+        time_schedules = time_schedules[['Course Name', 'Seats', 'SLN', 'Section', 'Type', 'Time', 
                     'Start', 'End', 'Building', 'Room Number', 'Campus', 'Quarter', 'Year']]
-    return total
 
-
-if __name__ == '__main__':
-    #print(to_time('830-920')) 
-    print(gather(2019, 'AUT'))
+    if struct == 'df':
+        return time_schedules
+    elif struct == 'dict':
+        return time_schedules.to_dict(orient='index')

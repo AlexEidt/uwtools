@@ -4,8 +4,8 @@ with open('README.md', mode='r') as fh:
     long_description = fh.read()
 
 setuptools.setup(name='uwtools',
-      version='1.4',
-      description='Easy data collection/manipulation for courses at the University of Washington',
+      version='1.5',
+      description='Easy data parsing for courses at the University of Washington',
       long_description=long_description,
       long_description_content_type='text/markdown',
       url='https://upload.pypi.org/legacy/',
