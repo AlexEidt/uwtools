@@ -10,10 +10,13 @@ dorm_site_re = re.compile(r'\([A-Z]{3,}\)\s?((\</div\>)|(\s?\| Campus Maps))')
 dorm_abb_re = re.compile(r'\([A-Z]{3,}\)')
 
 def seattle():
-    """Parses UW's Facilities to get all Building Names for UW Seattle Campus
-    Returns
-        Dictionary with Building Name Abbreviations to full Building Names"""
+    """
+    Parses UW's Facilities to get all Building Names for UW Seattle Campus
 
+    Returns
+
+        Dictionary with Building Name Abbreviations to full Building Names
+    """
     def dorms():
         local_dorm_site_re = dorm_site_re
         local_dorm_abb_re = dorm_abb_re
@@ -71,9 +74,13 @@ def seattle():
 
 
 def bothell():
-    """Parses UW's Facilities to get all Building Names for UW Bothell Campus
+    """
+    Parses UW's Facilities to get all Building Names for UW Bothell Campus
+
     Returns
-        Dictionary with Building Name Abbreviations to full Building Names"""
+
+        Dictionary with Building Name Abbreviations to full Building Names
+    """
     buildings = {}
     bothell_buildings = BeautifulSoup(requests.get('https://www.uwb.edu/safety/hours').text, features='lxml')
     for building in bothell_buildings.find_all('div', {'class': ['col1', 'col2', 'col3']}):
@@ -87,9 +94,13 @@ def bothell():
 building_re = re.compile(r'[A-Z]{2,} \d+')
 
 def tacoma():
-    """Parses UW's Facilities to get all Building Names for UW Seattle Campus
+    """
+    Parses UW's Facilities to get all Building Names for UW Seattle Campus
+
     Returns
-        Dictionary with Building Name Abbreviations to full Building Names"""
+
+        Dictionary with Building Name Abbreviations to full Building Names
+    """
     buildings = {}
     local_building_re = building_re
     tacoma_buildings = BeautifulSoup(requests.get('https://www.tacoma.uw.edu/campus-map/buildings').text, 
@@ -112,10 +123,15 @@ def tacoma():
 
 
 def get_buildings(campuses=['Seattle', 'Bothell', 'Tacoma']):
-    """Returns the Buildings at UW for each campus
-    @params:
+    """
+    Returns the Buildings at UW for each campus
+
+    @params
+
         'campuses': The Campuses to get the Buildings from
+
     Returns
+
         A dictionary with building name abbreviations to full names.
     """
     assert all([c in ['Seattle', 'Bothell', 'Tacoma'] for c in list(map(str.title, campuses))])
@@ -131,11 +147,17 @@ def get_buildings(campuses=['Seattle', 'Bothell', 'Tacoma']):
 
 
 def geocode(buildings=[], campuses=['Seattle', 'Bothell', 'Tacoma']):
-    """Geocodes UW Buildings
-    @params:
+    """
+    Geocodes UW Buildings
+
+    @params
+
         'buildings': List of buildings to geocode
+
         'campuses': Campuses to get building coordinates from
+
     Returns
+
         A dictionary with data for each building in the buildings list
     """
     assert all([c in ['Seattle', 'Bothell', 'Tacoma'] for c in list(map(str.title, campuses))])

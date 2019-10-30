@@ -11,7 +11,6 @@ from itertools import chain
 from datetime import datetime as dttime
 from datetime import timedelta
 import pandas as pd
-import numpy as np
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 import concurrent.futures as cf
@@ -47,10 +46,15 @@ QUARTERS = {
 COURSE_KEYS = ['Course Name', 'Seats', 'SLN', 'Section', 'Type', 'Days', 'Time', 'Building', 'Room Number']
 
 def get_academic_year(year):
-    """Returns the current academic school year
+    """
+    Returns the current academic school year
+
     @params
+
         'year': A specific Academic School Year.
+
     Returns
+
         The Academic School Year. Example: 2019-2020 -> 1920
     """
     if year == dttime.now().year:
@@ -61,13 +65,18 @@ def get_academic_year(year):
 
 
 def quarter_dates(year=None):
-    """Parses UW's Academic Calendar to find current date ranges
-       for every quarter
-    @params:
+    """
+    Parses UW's Academic Calendar to find current date ranges
+    for every quarter
+
+    @params
+
         'year': The academic year to get quarter date ranges from.
                 Example: 2019-2020 -> 1920
                 Academic years starting from 2014-2015 (1415) are supported.
+
     Returns
+
         Dictionary with Quarter Abbreviation keys mapping to list of 
         datetime objects representing the range of dates for that quarter
     """
@@ -111,14 +120,21 @@ def quarter_dates(year=None):
 
 
 def get_quarter(filter_=False, type_='current'):
-    """Calculates the current quarter based on the current date
+    """
+    Calculates the current quarter based on the current date
+
     @params
+
         'filter_': Filters out the A and B terms of Summer Quarter if necessary if True
                    otherwise does not
+
         'type_':   'current': Get the current quarter at UW
                    'upcoming': Get the upcoming quarter at UW
+
         'include_year': If True, returns a tuple of the current quarter and corresponding year.
+
     Returns
+
         String representing the current quarter(s) 
         NOTE: Summer Quarter has two terms, A and B
     """
@@ -164,16 +180,24 @@ def get_quarter(filter_=False, type_='current'):
 
 
 def parse_departments(campus, year, quarter, progress_bar):
-    """Finds all department schedule websites for the given campus
-    @params:
+    """
+    Finds all department schedule websites for the given campus
+
+    @params
+
         'campus': The campus to get schedules from
+
         'year': Must be an int. Years must be >= 2003.
                 If a year is entered and a quarter is not, all quarters from that year will be parsed.
+
         'quarter': Must be a str. Each quarter must be either 'AUT', 'WIN', 'SPR', or 'SUM'.
+
     NOTE:
         For all academic years before and including 2006-2007, some 
         4-digit (and some older 5-digit) SLN codes will not work.
+
     Returns
+
         A pandas DataFrame object with the time schedule information for the given year
         and quarter combination for the given campus.
     """
@@ -249,10 +273,15 @@ extra_section_re = re.compile(r'[MTWhF]+\s+\d+\-\d+P?\s+[A-Z\d]+\s+[A-Za-z/\+\-\
 lecture_re = re.compile(r'[\*,\[\]\.max\d/ \-]+|(VAR)')
 
 def parse_schedules(department):
-    """Creates a dictionary of course, schedule pairings
-    @params:
+    """
+    Creates a dictionary of course, schedule pairings
+
+    @params
+
         'department': The department schedule website
+
     Returns
+
         A list of lists. Each nested list contains the following Course Time Data:
             'Course Name', 'Seats', 'SLN', 'Section', 'Type', 
             'Days', 'Time', 'Building', 'Room Number'
@@ -317,11 +346,16 @@ switch_pm = lambda t: 'AM' if t.strip() == 'PM' else 'PM'
 
 
 def to_time(time1):
-    """Converts the given time to a time object
+    """
+    Converts the given time to a time object
+
     @params
+
         'time1': Time of format: HHMM-HHMM
                  Example: 930-1120
+
     Returns 
+
         The converted times (split by '-') into time
         objects 
     """
@@ -343,25 +377,36 @@ def to_time(time1):
 
 def gather(year, quarter, campuses=['Seattle', 'Tacoma', 'Bothell'], struct='df',
            include_datetime=False, show_progress=False, json_ready=False):
-    """Gathers the Time Schedules for the given UW Campuses
-    @params:
+    """
+    Gathers the Time Schedules for the given UW Campuses
+
+    @params
+    
         'year': The year to get time schedules from
+
         'quarter': The specific quarter to get time schedules from
+
         'campuses': The Campuses to get the Time Schedules from
+
         'struct': The Data Structure to return the Time Schedule data in
                   'df' -> Pandas DataFrame
                   'dict' -> Python Dictionary
+
         'include_datetime': Adds two columns to the DataFrame/Dict, ['Start', 'End'] which
                             are datetime objects representing the start and ending times for
                             the course. This is useful when checking if courses overlap
                             or other analysis relating to duration of courses, etc...
                             WARNING: Including the datetime may result in slower performance.
+
         'show_progress': Displays a progress meter in the console if True,
                          otherwise displays nothing
+
         'json_ready': If struct='dict', and you would like to store the dict in a .json file,
                       json_ready removes all the datetime objects to prevent TypeErrors
                       when converting to JSON. 
-    Returns:
+
+    Returns
+
         A Pandas DataFrame/Python Dictionary representing the Time Schedules 
         for the given courses
     """
