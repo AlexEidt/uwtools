@@ -109,7 +109,7 @@ def quarter_dates(year=None):
                 if len(temp) == 2:
                     datetimes = []
                     for date in temp:
-                        data = list(filter(('').__ne__, date.split(' ')))
+                        data = list(filter(None, date.split(' ')))
                         if len(data) == 3:
                             datetimes.append(datetime.date(int(data[2]), month_names[data[0]], int(data[1])))
                     start_end[list(QUARTERS.keys())[math.floor(index / 2)]] = [d for d in datetimes]
@@ -314,7 +314,7 @@ def parse_schedules(department):
                         seats = re.sub(local_seats_re, '', seats.group(0).split('/', 1)[-1].strip())
                     open_closed = local_fill.split(text, 1)
                     extract = open_closed[0].rsplit(',', 1)[0].rsplit(' ', 1)[0].strip()
-                    text = list(filter(('').__ne__, chain([name.upper(), seats], extract.split())))[0:9]
+                    text = list(filter(None, chain([name.upper(), seats], extract.split())))[0:9]
                     if len(text) >= 5:
                         if re.search(local_lecture_re, text[4]):
                             text[4] = 'LECT'
@@ -329,7 +329,7 @@ def parse_schedules(department):
                         # course information is displayed in lists to show all times the section meets
                         extra_section = re.search(local_extra_section_re, open_closed[-1])
                         if len(open_closed) > 1 and extra_section:
-                            extras = list(chain(text[0:5], filter(('').__ne__, extra_section.group(0).split())))
+                            extras = list(chain(text[0:5], filter(None, extra_section.group(0).split())))
                             department_schedule.append(extras)
                         department_schedule.append(text)
     return department_schedule

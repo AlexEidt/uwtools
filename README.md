@@ -8,7 +8,6 @@ The *uwtools* library is inspired by the <a href="https://github.com/pandas-dev/
 <br/>
 Some features of the library include:
 
-* Archived Data in compressed files allows for quick access to a large variety of data from UW.
 * Easily get quarter date ranges and current/upcoming quarters at UW.
 * Easy parsing of the current [Time Schedules](https://www.washington.edu/students/timeschd/) and [Course Catalogs](http://www.washington.edu/students/crscat/) for every UW Campus.
 * Times for course sections in Time Schedules converted to `datetime` objects.

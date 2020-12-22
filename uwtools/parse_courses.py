@@ -157,6 +157,7 @@ def get_requisites(description, type_):
         else:
             new_result.append(course)
     description = ';'.join(new_result)
+    del new_result
 
     if 'with either' in description:
             with_either = description.split('with either')
@@ -165,7 +166,7 @@ def get_requisites(description, type_):
 
     def extract(course_option, split_char):
         elements = []
-        for next_option in filter(('').__ne__, course_option.split(split_char)):
+        for next_option in filter(None, course_option.split(split_char)):
             find_match(next_option, elements)
         return elements
 
@@ -174,25 +175,26 @@ def get_requisites(description, type_):
         if match: to_append.append(match.group(0))
 
     semi_colon = []
-    for crs in filter(('').__ne__, description.split(';')):
+    for crs in filter(None, description.split(';')):
         comma = []
-        for option in filter(('').__ne__, crs.split(',')):
+        for option in filter(None, crs.split(',')):
             if '/' in option and '&&' not in option:
                 comma.append('/'.join(extract(option, '/')))
             elif '/' not in option and '&&' in option:
                 comma.append('&&'.join(extract(option, '&&')))
             elif '/' in option and '&&' in option:
-                doubleand = ['/'.join(extract(x, '/')) for x in filter(('').__ne__, option.split('&&'))]
+                doubleand = ['/'.join(extract(x, '/')) for x in filter(None, option.split('&&'))]
                 comma.append('&&'.join(doubleand))
             else:
                 find_match(option, comma) 
-        semi_colon.append(','.join(filter(('').__ne__, comma)))
-    result = ';'.join(filter(('').__ne__, semi_colon)).replace(' ', '')
-    result = result.strip(',').strip(';').strip('&').replace(';,', ';')
+        semi_colon.append(','.join(filter(None, comma)))
+    result = ';'.join(filter(None, semi_colon)).replace(' ', '') \
+                .strip(',').strip(';').strip('&').replace(';,', ';')
     result = f'{result}{POI}'
+    del POI, semi_colon
     result = re.sub(r'&{3,}', '', result)
-    result = ','.join(filter(('').__ne__, result.split(',')))
-    result = ';'.join(filter(('').__ne__, result.split(';')))
+    result = ','.join(filter(None, result.split(',')))
+    result = ';'.join(filter(None, result.split(';')))
     result = ','.join(dict.fromkeys(result.split(','))).replace(';&&', ';').strip('&')
     result = ';'.join(dict.fromkeys(result.split(';')))
     result = result.strip(',').strip(';').strip('&').replace(';,', ';').strip()
