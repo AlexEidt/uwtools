@@ -3,9 +3,6 @@
 import re, time, json, os, requests
 import pandas as pd
 import concurrent.futures as cf
-from threading import Thread
-from zlib import compress, decompress
-from pkgutil import get_data
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 from unicodedata import normalize
@@ -183,7 +180,7 @@ def get_requisites(description, type_):
             elif '/' not in option and '&&' in option:
                 comma.append('&&'.join(extract(option, '&&')))
             elif '/' in option and '&&' in option:
-                doubleand = ['/'.join(extract(x, '/')) for x in filter(None, option.split('&&'))]
+                doubleand = ('/'.join(extract(x, '/')) for x in filter(None, option.split('&&')))
                 comma.append('&&'.join(doubleand))
             else:
                 find_match(option, comma) 

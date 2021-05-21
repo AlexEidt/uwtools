@@ -33,17 +33,8 @@ CAMPUSES_TIMES = {
         }
 }
 
-# Mapping of each quarter to the next quarter
-QUARTERS = {
-    'AUT': 'WIN', 
-    'WIN': 'SPR',
-    'SPR': 'SUM',
-    'SUM': 'AUT',
-    'SUMA': 'AUT',
-    'SUMB': 'AUT'
-}
-
 COURSE_KEYS = ['Course Name', 'Seats', 'SLN', 'Section', 'Type', 'Days', 'Time', 'Building', 'Room Number']
+
 
 def get_academic_year(year):
     """
@@ -62,121 +53,6 @@ def get_academic_year(year):
             return str(year)[2:] + str(year + 1)[2:]
         return str(year - 1)[2:] + str(year)[2:]
     return str(year)[2:] + str(year + 1)[2:]
-
-
-def quarter_dates(year=None):
-    """
-    Parses UW's Academic Calendar to find current date ranges
-    for every quarter
-
-    @params
-
-        'year': The academic year to get quarter date ranges from.
-                Example: 2019-2020 -> 1920
-                Academic years starting from 2014-2015 (1415) are supported.
-
-    Returns
-
-        Dictionary with Quarter Abbreviation keys mapping to list of 
-        datetime objects representing the range of dates for that quarter
-    """
-    # Check Parameters
-    if year:
-        year = str(year)
-        start = int(year[0:2])
-        end = int(year[2:])
-        assert len(year) == 4 and start >= 14 and end == start + 1, 'Invalid Year Argument'
-    # Get the academic school year. Example: 2019-2020 -> 1920
-    if year is None:
-        academic_year = get_academic_year(dttime.now().year)
-    else:
-        academic_year = year
-
-    # Check the UW Academic Calendar for the date ranges for each calendar
-    uw_request = requests.get(f'https://www.washington.edu/students/reg/{academic_year}cal.html')
-    if uw_request.ok:
-        quarter_data = BeautifulSoup(uw_request.text, features='lxml')
-        table = quarter_data.find('table')
-        index = 0
-        temp = []
-        start_end = {}
-        # Month name to index abbreviation. I.e January -> 1, February -> 2, etc
-        month_names = {m: n for n, m in enumerate(calendar.month_name)}
-        for date_range in table.find_all('td'):
-            text = date_range.text
-            if '-' not in text and re.search(r'[A-Z][a-z]+ \d+, \d+', text) and text:
-                temp.append(text.replace(',', '', 1).replace('\n', '').replace('\r', ''))
-                if len(temp) == 2:
-                    datetimes = []
-                    for date in temp:
-                        data = list(filter(None, date.split(' ')))
-                        if len(data) == 3:
-                            datetimes.append(datetime.date(int(data[2]), month_names[data[0]], int(data[1])))
-                    start_end[list(QUARTERS.keys())[math.floor(index / 2)]] = [d for d in datetimes]
-                    temp.clear()
-                index += 1
-        return start_end
-    return {}
-
-
-def get_quarter(filter_=False, type_='current'):
-    """
-    Calculates the current quarter based on the current date
-
-    @params
-
-        'filter_': Filters out the A and B terms of Summer Quarter if necessary if True
-                   otherwise does not
-
-        'type_':   'current': Get the current quarter at UW
-                   'upcoming': Get the upcoming quarter at UW
-
-        'include_year': If True, returns a tuple of the current quarter and corresponding year.
-
-    Returns
-
-        String representing the current quarter(s) 
-        NOTE: Summer Quarter has two terms, A and B
-    """
-    assert type(filter_) == bool, 'Type of "filter_" must be bool'
-    assert type(type_) == str, 'Type of "type_" must be str'
-    assert type_ in ['current', 'upcoming'], 'Value of "type_" must be "current" or "upcoming"'
-
-    # The range_ list is a list of lists with each list containing two datetime objects
-    # representing the time range of each quarter. The time range is the first day of the quarter
-    # to the last day before the next quarter begins. 
-    # This means that if the current date falls in a quarter break, such as Summer break, the current
-    # quarter will be Summer (SUM) and the upcoming quarter will be Autumn (AUT)
-    current_dates = quarter_dates()
-    previous_dates = quarter_dates(year=get_academic_year(dttime.now().year - 1))
-    ranges = list(current_dates.values())[:-2]
-    # Change each quarters ending date to be the next quarters starting date minus one day
-    for i in range(len(ranges)):
-        # If the quarter is the last quarter (SUM), use AUT quarters starting date
-        if i == len(ranges) - 1:
-            ranges[i][1] = ranges[0][0] - timedelta(days=1)
-            continue
-        ranges[i][1] = ranges[i + 1][0] - timedelta(days=1)
-    ranges += list(current_dates.values())[-2:]
-    prev = list(previous_dates.values())
-    for i in range(3, 6):
-        ranges[i] = prev[i]
-    ranges[3][1] = ranges[0][0] - timedelta(days=1)
-    current_quarters = [q for q, d in zip(QUARTERS.keys(), ranges) 
-                        if d[0] <= datetime.date.today() <= d[1]]
-    if type_ == 'upcoming':
-        quarter = ''.join({QUARTERS[q] for q in current_quarters})
-        if filter_:
-            return 'SUM' if 'SUM' in quarter else quarter
-        if 'SUM' in quarter:
-            return 'SUM, SUMA, SUMB'
-        return quarter
-    elif type_ == 'current':
-        if filter_:
-            quarter = ''.join(current_quarters)
-            return 'SUM' if 'SUM' in quarter else quarter
-        return ', '.join(current_quarters)
-    return None
 
 
 def parse_departments(campus, year, quarter, progress_bar):

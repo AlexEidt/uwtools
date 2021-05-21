@@ -29,8 +29,6 @@ Method | Description
 --- | ---
 <a href='https://github.com/AlexEidt/uwtools/wiki/Course-Catalogs'>course_catalogs</a> | Parse the UW Course Catalogs
 <a href='https://github.com/AlexEidt/uwtools/wiki/Departments'>departments</a> | Get information about UW Departments
-<a href='https://github.com/AlexEidt/uwtools/wiki/Get-Quarter-Ranges'>get_quarter_ranges</a> | Find out the time ranges of quarters at UW as `datetime` objects
-<a href='https://github.com/AlexEidt/uwtools/wiki/Get-Quarter'>get_quarter</a> | Get the current/upcoming quarter at UW based on the current date
 <a href='https://github.com/AlexEidt/uwtools/wiki/Academic-Year'>academic_year</a> | Find the academic school year
 <a href='https://github.com/AlexEidt/uwtools/wiki/Time-Schedules'>time_schedules</a> | Parse the UW Time Schedules from Winter 2003 - Present for UW Campuses
 <a href='https://github.com/AlexEidt/uwtools/wiki/Buildings'>buildings</a> | Get a list of buildings at each UW Campus with full names included
